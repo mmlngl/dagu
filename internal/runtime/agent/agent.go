@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1046,6 +1047,7 @@ func (a *Agent) nodeToModelNode(nodeData runtime.NodeData) *exec.Node {
 		Error:           errorString(nodeData.State.Error),
 		SubRuns:         subRuns,
 		OutputVariables: nodeData.State.OutputVariables,
+		OutputsValue:    nodeData.State.OutputsValue,
 	}
 }
 
@@ -1081,6 +1083,7 @@ func (a *Agent) collectOutputs(ctx context.Context) map[string]string {
 
 	for _, node := range nodes {
 		nodeData := node.NodeData()
+		maps.Copy(outputs, nodeData.OutputsValueStringMap())
 		step := nodeData.Step
 
 		// Only string-form output participates in outputs.json.

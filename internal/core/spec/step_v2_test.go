@@ -160,6 +160,163 @@ steps:
 	assert.Contains(t, err.Error(), `parallel currently requires action: dag.run or dag.enqueue`)
 }
 
+func TestStepSchemaV2_SourceAction(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    action: source:github.com/acme/dagu-actions-slack@v1
+    with:
+      channel: "#ops"
+      text: done
+`))
+	require.NoError(t, err)
+	require.Len(t, dag.Steps, 1)
+
+	step := dag.Steps[0]
+	assert.Equal(t, "notify", step.ID)
+	assert.Equal(t, core.ExecutorTypeAction, step.ExecutorConfig.Type)
+	assert.Equal(t, "source:github.com/acme/dagu-actions-slack@v1", step.ExecutorConfig.Config["ref"])
+	assert.Equal(t, map[string]any{
+		"channel": "#ops",
+		"text":    "done",
+	}, step.ExecutorConfig.Config["input"])
+}
+
+func TestStepSchemaV2_GitHubAction(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    action: acme/dagu-actions-slack@v1
+    with:
+      channel: "#ops"
+      text: done
+`))
+	require.NoError(t, err)
+	require.Len(t, dag.Steps, 1)
+
+	step := dag.Steps[0]
+	assert.Equal(t, core.ExecutorTypeAction, step.ExecutorConfig.Type)
+	assert.Equal(t, "acme/dagu-actions-slack@v1", step.ExecutorConfig.Config["ref"])
+	assert.Equal(t, map[string]any{
+		"channel": "#ops",
+		"text":    "done",
+	}, step.ExecutorConfig.Config["input"])
+}
+
+func TestStepSchemaV2_OfficialActionShorthand(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    action: slack@v1
+    with:
+      channel: "#ops"
+      text: done
+`))
+	require.NoError(t, err)
+	require.Len(t, dag.Steps, 1)
+
+	step := dag.Steps[0]
+	assert.Equal(t, core.ExecutorTypeAction, step.ExecutorConfig.Type)
+	assert.Equal(t, "slack@v1", step.ExecutorConfig.Config["ref"])
+	assert.Equal(t, map[string]any{
+		"channel": "#ops",
+		"text":    "done",
+	}, step.ExecutorConfig.Config["input"])
+}
+
+func TestStepSchemaV2_ActionRejectsPackagePrefix(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    action: pkg:dagu-actions/slack.notify@1.2.3
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "owner/repo@version")
+}
+
+func TestStepSchemaV2_ActionRejectsUnsafeGitHubVersion(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    action: acme/dagu-actions-slack@-main
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "owner/repo@version")
+}
+
+func TestStepSchemaV2_SourceActionRejectsUnsafeRefs(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name    string
+		action  string
+		message string
+	}{
+		{
+			name:    "missing version",
+			action:  "source:github.com/acme/dagu-actions-slack",
+			message: "source:target@version",
+		},
+		{
+			name:    "unsafe version",
+			action:  "source:github.com/acme/dagu-actions-slack@-main",
+			message: "invalid action version",
+		},
+		{
+			name:    "path traversal version",
+			action:  "source:github.com/acme/dagu-actions-slack@feature/../main",
+			message: "invalid action version",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    action: `+tt.action+`
+`))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.message)
+		})
+	}
+}
+
+func TestStepSchemaV2_ExplicitActionExecutor(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: notify
+    type: action
+    with:
+      ref: acme/dagu-actions-slack@v1
+      input:
+        channel: "#ops"
+        text: done
+`))
+	require.NoError(t, err)
+	require.Len(t, dag.Steps, 1)
+
+	step := dag.Steps[0]
+	assert.Equal(t, core.ExecutorTypeAction, step.ExecutorConfig.Type)
+	assert.Equal(t, "acme/dagu-actions-slack@v1", step.ExecutorConfig.Config["ref"])
+	assert.Equal(t, map[string]any{
+		"channel": "#ops",
+		"text":    "done",
+	}, step.ExecutorConfig.Config["input"])
+}
+
 func TestStepSchemaV2_ActionHTTPRequest(t *testing.T) {
 	t.Parallel()
 
@@ -629,6 +786,27 @@ steps:
 	assert.Empty(t, step.ExecutorConfig.Config)
 }
 
+func TestStepSchemaV2_ActionOutputsWrite(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: publish_result
+    action: outputs.write
+    with:
+      values:
+        messageId: msg-123
+`))
+	require.NoError(t, err)
+	require.Len(t, dag.Steps, 1)
+
+	step := dag.Steps[0]
+	assert.Equal(t, "outputs", step.ExecutorConfig.Type)
+	require.Len(t, step.Commands, 1)
+	assert.Equal(t, "write", step.Commands[0].Command)
+	assert.Equal(t, map[string]any{"messageId": "msg-123"}, step.ExecutorConfig.Config["values"])
+}
+
 func TestStepSchemaV2_StdoutArtifact(t *testing.T) {
 	t.Parallel()
 
@@ -649,6 +827,73 @@ steps:
 	assert.Equal(t, "reports/report.md", dag.Steps[0].StdoutArtifact)
 	assert.Empty(t, dag.Steps[0].Stderr)
 	assert.Equal(t, "reports/report.err", dag.Steps[0].StderrArtifact)
+}
+
+func TestStepSchemaV2_StdoutOutputs(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: emit_result
+    run: ./emit-result
+    stdout:
+      artifact: reports/result.json
+      outputs:
+        fields:
+          messageId:
+            decode: json
+            select: .id
+          status:
+            value: accepted
+`))
+	require.NoError(t, err)
+	require.NotNil(t, dag.Artifacts)
+	assert.True(t, dag.Artifacts.Enabled)
+	require.Len(t, dag.Steps, 1)
+
+	step := dag.Steps[0]
+	assert.Equal(t, "reports/result.json", step.StdoutArtifact)
+	require.NotNil(t, step.StdoutOutputs)
+	require.Contains(t, step.StdoutOutputs.Fields, "messageId")
+	messageID := step.StdoutOutputs.Fields["messageId"]
+	assert.Equal(t, core.StepOutputSourceStdout, messageID.From)
+	assert.Equal(t, core.StepOutputDecodeJSON, messageID.Decode)
+	assert.Equal(t, ".id", messageID.Select)
+	require.Contains(t, step.StdoutOutputs.Fields, "status")
+	status := step.StdoutOutputs.Fields["status"]
+	assert.True(t, status.HasValue)
+	assert.Equal(t, "accepted", status.Value)
+}
+
+func TestStepSchemaV2_StdoutOutputsStringField(t *testing.T) {
+	t.Parallel()
+
+	dag, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: emit_result
+    run: ./emit-result
+    stdout:
+      outputs: messageId
+`))
+	require.NoError(t, err)
+	require.Len(t, dag.Steps, 1)
+
+	require.NotNil(t, dag.Steps[0].StdoutOutputs)
+	assert.Equal(t, "messageId", dag.Steps[0].StdoutOutputs.Field)
+}
+
+func TestStepSchemaV2_StderrRejectsOutputs(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadYAML(context.Background(), []byte(`
+steps:
+  - id: emit_result
+    run: ./emit-result
+    stderr:
+      outputs: messageId
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stderr.outputs is not supported")
 }
 
 func TestStepSchemaV2_StdoutArtifactRejectsDisabledArtifacts(t *testing.T) {
