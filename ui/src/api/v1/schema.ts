@@ -1828,6 +1828,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/incident-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List incident providers
+         * @description Returns configured incident providers such as PagerDuty and SolarWinds Incident Response. Incident management requires an active Dagu license or trial. Developer, manager, or admin only.
+         */
+        get: operations["listIncidentProviders"];
+        put?: never;
+        /**
+         * Create incident provider
+         * @description Creates an incident provider. Secret values are accepted in the request but are never returned. Developer, manager, or admin only.
+         */
+        post: operations["createIncidentProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-providers/{providerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get incident provider
+         * @description Returns one incident provider. Developer, manager, or admin only.
+         */
+        get: operations["getIncidentProvider"];
+        /**
+         * Update incident provider
+         * @description Replaces an incident provider. Existing secret values are preserved when omitted. Developer, manager, or admin only.
+         */
+        put: operations["updateIncidentProvider"];
+        post?: never;
+        /**
+         * Delete incident provider
+         * @description Deletes an incident provider. Providers referenced by incident routing cannot be deleted.
+         */
+        delete: operations["deleteIncidentProvider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-providers/{providerId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test incident
+         * @description Sends a test trigger and resolve event to one incident provider. Developer, manager, or admin only.
+         */
+        post: operations["testIncidentProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List incident routing
+         * @description Returns global, workspace, and DAG incident routing. Developer, manager, or admin only.
+         */
+        get: operations["listIncidentPolicies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-policies/global": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get global incident routing
+         * @description Returns global incident routing. Global routing is used unless a workspace or DAG override is configured. Developer, manager, or admin only.
+         */
+        get: operations["getGlobalIncidentPolicies"];
+        /**
+         * Update global incident routing
+         * @description Replaces global incident routing. Route provider IDs must reference incident providers. Developer, manager, or admin only.
+         */
+        put: operations["updateGlobalIncidentPolicies"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incident-policies/workspaces/{workspaceName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get workspace incident routing
+         * @description Returns incident routing for one named workspace. Workspace routing can inherit global routing. Developer, manager, or admin only.
+         */
+        get: operations["getWorkspaceIncidentPolicies"];
+        /**
+         * Update workspace incident routing
+         * @description Replaces incident routing for one named workspace. Route provider IDs must reference incident providers. Developer, manager, or admin only.
+         */
+        put: operations["updateWorkspaceIncidentPolicies"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dags/{fileName}/webhook": {
         parameters: {
             query?: never;
@@ -2039,6 +2179,34 @@ export interface paths {
          */
         post: operations["testDAGNotifications"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dags/{fileName}/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get DAG incident routing
+         * @description Returns DAG-level incident routing override settings. Missing settings mean this DAG inherits workspace or global routing. Developer, manager, or admin only.
+         */
+        get: operations["getDAGIncidents"];
+        /**
+         * Update DAG incident routing
+         * @description Creates or replaces DAG-level incident routing override settings. Route provider IDs must reference incident providers. Developer, manager, or admin only.
+         */
+        put: operations["updateDAGIncidents"];
+        post?: never;
+        /**
+         * Delete DAG incident routing
+         * @description Removes DAG-level incident routing override settings so the DAG inherits workspace or global routing. Developer, manager, or admin only.
+         */
+        delete: operations["deleteDAGIncidents"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3870,6 +4038,191 @@ export interface components {
         /** @description Result of test notification delivery */
         TestDAGNotificationResponse: {
             results: components["schemas"]["TestDAGNotificationResult"][];
+        };
+        /**
+         * @description Incident provider type
+         * @enum {string}
+         */
+        IncidentProviderType: IncidentProviderType;
+        /**
+         * @description Incident severity
+         * @enum {string}
+         */
+        IncidentSeverity: IncidentSeverity;
+        /**
+         * @description Incident routing scope
+         * @enum {string}
+         */
+        IncidentPolicyScope: IncidentPolicyScope;
+        /** @description PagerDuty Events API v2 provider input. The routing key is encrypted at rest. */
+        IncidentPagerDutyProviderInput: {
+            /** @description PagerDuty Events API v2 routing key. Omit on updates to preserve the existing key. */
+            routingKey?: string;
+            /** @description Clear the stored routing key. */
+            clearRoutingKey?: boolean;
+        };
+        /** @description Public PagerDuty provider details */
+        IncidentPagerDutyProvider: {
+            /** @description Whether a PagerDuty routing key is configured */
+            routingKeyConfigured: boolean;
+            /** @description Redacted routing key preview */
+            routingKeyPreview?: string;
+        };
+        /** @description SolarWinds Incident Response incoming webhook provider input. The webhook URL is encrypted at rest. */
+        IncidentSolarWindsProviderInput: {
+            /**
+             * Format: uri
+             * @description Incoming webhook URL. Omit on updates to preserve the existing URL.
+             */
+            webhookUrl?: string;
+            /** @description Clear the stored webhook URL. */
+            clearWebhookUrl?: boolean;
+            /** @description Allow plain HTTP webhook URLs. Disabled by default. */
+            allowInsecureHttp?: boolean;
+            /** @description Allow loopback or private network webhook targets. Disabled by default. */
+            allowPrivateNetwork?: boolean;
+        };
+        /** @description Public SolarWinds Incident Response provider details */
+        IncidentSolarWindsProvider: {
+            /** @description Whether an incoming webhook URL is configured */
+            webhookUrlConfigured: boolean;
+            /** @description Redacted webhook URL preview */
+            webhookUrlPreview?: string;
+            /** @description Whether this provider allows plain HTTP webhook URLs */
+            allowInsecureHttp?: boolean;
+            /** @description Whether this provider allows loopback or private network webhook targets */
+            allowPrivateNetwork?: boolean;
+        };
+        /** @description PagerDuty incident provider input */
+        IncidentPagerDutyProviderInputEnvelope: {
+            /** @description Human-readable provider name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: IncidentPagerDutyProviderInputEnvelopeType;
+            /** @description Whether this provider can receive incident events */
+            enabled: boolean;
+            pagerDuty: components["schemas"]["IncidentPagerDutyProviderInput"];
+        };
+        /** @description SolarWinds Incident Response provider input */
+        IncidentSolarWindsProviderInputEnvelope: {
+            /** @description Human-readable provider name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: IncidentSolarWindsProviderInputEnvelopeType;
+            /** @description Whether this provider can receive incident events */
+            enabled: boolean;
+            solarWinds: components["schemas"]["IncidentSolarWindsProviderInput"];
+        };
+        /** @description Incident provider input */
+        IncidentProviderInput: components["schemas"]["IncidentPagerDutyProviderInputEnvelope"] | components["schemas"]["IncidentSolarWindsProviderInputEnvelope"];
+        /** @description Incident provider. Secrets are never returned. */
+        IncidentProvider: {
+            /** @description Stable provider ID */
+            id: string;
+            /** @description Human-readable provider name */
+            name: string;
+            type: components["schemas"]["IncidentProviderType"];
+            /** @description Whether this provider can receive incident events */
+            enabled: boolean;
+            pagerDuty?: components["schemas"]["IncidentPagerDutyProvider"];
+            solarWinds?: components["schemas"]["IncidentSolarWindsProvider"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description User ID that last updated the provider */
+            updatedBy?: string;
+        };
+        /** @description Incident providers */
+        IncidentProviderListResponse: {
+            providers: components["schemas"]["IncidentProvider"][];
+        };
+        /** @description Incident route input. A route opens an incident on final DAG failure and Dagu resolves the saved open incident on later success. */
+        IncidentPolicyInput: {
+            /** @description Stable route ID. Omit when adding a route. */
+            id?: string;
+            /** @description Incident provider ID */
+            providerId: string;
+            /** @description Whether this route is enabled. Normal incident routing sends true when the route exists. */
+            enabled: boolean;
+            severity: components["schemas"]["IncidentSeverity"];
+            /** @description Deprecated. Dagu resolves saved open incidents on recovery. */
+            resolveOnRecovery?: boolean;
+            /** @description Deprecated and ignored. Dagu generates stable provider incident keys. */
+            dedupKeyTemplate?: string;
+            /** @description Template for the provider incident summary/message. */
+            messageTemplate?: string;
+            /** @description Template for the provider incident description/details. */
+            descriptionTemplate?: string;
+        };
+        /** @description Incident route */
+        IncidentPolicy: {
+            /** @description Stable route ID */
+            id: string;
+            /** @description Incident provider ID */
+            providerId: string;
+            /** @description Whether this route is enabled */
+            enabled: boolean;
+            severity: components["schemas"]["IncidentSeverity"];
+            /** @description Deprecated. Dagu resolves saved open incidents on recovery. */
+            resolveOnRecovery: boolean;
+            /** @description Deprecated and ignored. Dagu generates stable provider incident keys. */
+            dedupKeyTemplate: string;
+            /** @description Template for the provider incident summary/message */
+            messageTemplate: string;
+            /** @description Template for the provider incident description/details */
+            descriptionTemplate: string;
+        };
+        /** @description Replacement incident routing for a global, workspace, or DAG scope */
+        IncidentPolicySetInput: {
+            /** @description Whether this scope can open new incidents */
+            enabled: boolean;
+            /** @description For workspace and DAG routing, true means inherit the parent scope instead of using local routes. Ignored for global routing. */
+            inheritParent: boolean;
+            policies: components["schemas"]["IncidentPolicyInput"][];
+        };
+        /** @description Incident routing for a global, workspace, or DAG scope */
+        IncidentPolicySet: {
+            /** @description Stable routing ID, present after routing is saved */
+            id?: string;
+            scope: components["schemas"]["IncidentPolicyScope"];
+            /** @description Workspace name for workspace-scoped routing */
+            workspace?: string;
+            /** @description DAG name for DAG-scoped routing */
+            dagName?: string;
+            /** @description Whether this scope can open new incidents */
+            enabled: boolean;
+            /** @description For workspace and DAG routing, true means inherit the parent scope instead of using local routes */
+            inheritParent: boolean;
+            policies: components["schemas"]["IncidentPolicy"][];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** @description User ID that last updated routing */
+            updatedBy?: string;
+        };
+        /** @description Incident routing scopes */
+        IncidentPolicySetListResponse: {
+            policySets: components["schemas"]["IncidentPolicySet"][];
+        };
+        /** @description Delivery result for one incident provider */
+        TestIncidentProviderResult: {
+            providerId: string;
+            providerName: string;
+            providerType: components["schemas"]["IncidentProviderType"];
+            delivered: boolean;
+            error?: string;
+        };
+        /** @description Result of test incident delivery */
+        TestIncidentProviderResponse: {
+            result: components["schemas"]["TestIncidentProviderResult"];
         };
         /**
          * Format: string
@@ -11391,6 +11744,591 @@ export interface operations {
             };
         };
     };
+    listIncidentProviders: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of incident providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentProviderListResponse"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createIncidentProvider: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentProviderInput"];
+            };
+        };
+        responses: {
+            /** @description Incident provider created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentProvider"];
+                };
+            };
+            /** @description Invalid incident provider */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getIncidentProvider: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incident provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentProvider"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Incident provider not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateIncidentProvider: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentProviderInput"];
+            };
+        };
+        responses: {
+            /** @description Incident provider updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentProvider"];
+                };
+            };
+            /** @description Invalid incident provider */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Incident provider not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteIncidentProvider: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incident provider deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Incident provider not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Incident provider is used by routing */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    testIncidentProvider: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test incident delivery attempted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestIncidentProviderResponse"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Incident provider not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listIncidentPolicies: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of incident routing scopes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySetListResponse"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getGlobalIncidentPolicies: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Global incident routing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySet"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateGlobalIncidentPolicies: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentPolicySetInput"];
+            };
+        };
+        responses: {
+            /** @description Global incident routing updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySet"];
+                };
+            };
+            /** @description Invalid incident routing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Referenced incident provider was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWorkspaceIncidentPolicies: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                workspaceName: components["schemas"]["WorkspaceName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Workspace incident routing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySet"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Workspace was not found or is not visible */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateWorkspaceIncidentPolicies: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                workspaceName: components["schemas"]["WorkspaceName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentPolicySetInput"];
+            };
+        };
+        responses: {
+            /** @description Workspace incident routing updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySet"];
+                };
+            };
+            /** @description Invalid incident routing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Workspace or referenced incident provider was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getDAGWebhook: {
         parameters: {
             query?: {
@@ -12050,6 +12988,176 @@ export interface operations {
                 };
             };
             /** @description DAG or target not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDAGIncidents: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                /** @description the name of the DAG file */
+                fileName: components["parameters"]["DAGFileName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DAG incident routing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySet"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description DAG not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateDAGIncidents: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                /** @description the name of the DAG file */
+                fileName: components["parameters"]["DAGFileName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentPolicySetInput"];
+            };
+        };
+        responses: {
+            /** @description DAG incident routing updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentPolicySet"];
+                };
+            };
+            /** @description Invalid incident routing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description DAG or referenced incident provider was not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteDAGIncidents: {
+        parameters: {
+            query?: {
+                /** @description name of the remote node */
+                remoteNode?: components["parameters"]["RemoteNode"];
+            };
+            header?: never;
+            path: {
+                /** @description the name of the DAG file */
+                fileName: components["parameters"]["DAGFileName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DAG incident routing deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - requires an active Dagu license or trial */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description DAG incident policies not configured */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -16501,6 +17609,27 @@ export enum NotificationEventType {
 export enum NotificationRouteScope {
     global = "global",
     workspace = "workspace"
+}
+export enum IncidentProviderType {
+    pagerduty = "pagerduty",
+    solarwinds_incident_response = "solarwinds_incident_response"
+}
+export enum IncidentSeverity {
+    critical = "critical",
+    error = "error",
+    warning = "warning",
+    info = "info"
+}
+export enum IncidentPolicyScope {
+    global = "global",
+    workspace = "workspace",
+    dag = "dag"
+}
+export enum IncidentPagerDutyProviderInputEnvelopeType {
+    pagerduty = "pagerduty"
+}
+export enum IncidentSolarWindsProviderInputEnvelopeType {
+    solarwinds_incident_response = "solarwinds_incident_response"
 }
 export enum Stream {
     stdout = "stdout",
