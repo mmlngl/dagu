@@ -19,7 +19,7 @@
 
 Dagu gives your automation a home. Run your existing scripts, containers, SQL jobs, and HTTP calls as visible, governed workflows with schedules, retries, logs, artifacts, human-in-the-loop, and observability without Airflow-level complexity.
 
-Keep your existing automation as shell scripts, Python scripts, containers, SSH commands, SQL jobs, HTTP calls, AI harnesses, and reusable action packages. Define the workflow in plain YAML, run it with one binary, and get the operational layer that cron and ad hoc scripts are missing: dependencies, retries, queues, logs, artifacts, approvals, API/webhooks, optional distributed workers, pinned external CLI tools, and versioned Dagu Actions for reproducible runs.
+Keep your existing automation as shell scripts, Python scripts, containers, SSH commands, SQL jobs, HTTP calls, AI harnesses, and action packages. Define the workflow in plain YAML, run it with one binary, and get the operational layer that cron and ad hoc scripts are missing: dependencies, retries, queues, logs, artifacts, approvals, API/webhooks, optional distributed workers, pinned external CLI tools, and official or third-party Dagu Actions for reproducible runs.
 
 Dagu is local-first by default. API keys, private repositories, internal documents, customer data, Slack logs, and agent artifacts can stay inside your own machine or infrastructure instead of being handed to a cloud automation SaaS.
 
@@ -121,48 +121,33 @@ The script installers run a guided wizard that can add Dagu to your PATH, set it
 
 ### Create and run a workflow
 
-Create a YAML file with your workflow definition. For example, create `review-readme.yaml` with the following content:
+Create a YAML file with your workflow definition. For example, create `workflow-needs.yaml` with the following content:
 
 ```yaml
-params:
-  - name: REPO_URL
-    type: string
-    required: true
+tools:
+  - jqlang/jq@jq-1.7.1
 
 steps:
-  - id: review_pr
-    action: agent.run
+  - id: inspect
+    run: jq --version
+
+  - id: summarize
+    action: python-script@v1
     with:
-      task: |
-        Review the README.md file in ${REPO_URL}.
-        Return concise Markdown findings.
-      max_iterations: 10
-    stdout:
-      artifact: review.md
-
-  - id: approval
-    action: noop
-    depends: [review_pr]
-    approval:
-      prompt: Review the review.md artifact. Approve to post an issue with the findings, or reject to skip.
-
-  - id: read_review
-    action: artifact.read
-    depends: [approval]
-    with:
-      path: review.md
-
-  - id: post_issue
-    run: gh issue create --title "Review Findings" --body-file "${read_review.stdout}"
-    depends: [read_review]
+      input:
+        rows: [42, 8]
+      script: |
+        return {"total": sum(input["rows"])}
 ```
 
-This workflow uses the built-in [`agent.run` action](https://docs.dagu.sh/features/agent/step) and assumes a default model is configured in Agent Settings. It reviews a GitHub repository's README file, saves the agent's final output as an artifact, and then prompts for manual [approval](https://docs.dagu.sh/writing-workflows/yaml-specification#approval). After approval, [`artifact.read`](https://docs.dagu.sh/step-types/artifact) reads the artifact back so GitHub CLI (`gh`) can create an issue with the findings.
+This workflow declares the CLI it needs, then calls an official Dagu Action. `tools` pins `jq` to a known version, so workers do not depend on whatever happens to be installed locally. `python-script@v1` runs small Python glue code through a maintained action package.
+
+Tool provisioning uses [aqua](https://aquaproj.github.io/) as the default provider. See the [Tools documentation](https://docs.dagu.sh/writing-workflows/tools) and [Official Dagu Actions](https://docs.dagu.sh/dagu-actions/official) for the full syntax.
 
 Run the workflow with:
 
 ```sh
-dagu start review-readme.yaml -- params REPO_URL=<your-repo-url>
+dagu start workflow-needs.yaml
 ```
 
 ### Start the server
@@ -335,12 +320,15 @@ See the [embedded API documentation](https://docs.dagu.sh/embedding/go-api) and 
 steps:
   - id: extract
     run: ./extract.sh
+
   - id: transform_a
     run: ./transform_a.sh
-    depends: [extract]
+    depends: extract
+
   - id: transform_b
     run: ./transform_b.sh
-    depends: [extract]
+    depends: extract
+
   - id: load
     run: ./load.sh
     depends: [transform_a, transform_b]
@@ -359,7 +347,7 @@ graph LR
     style D fill:#18181B,stroke:#3B82F6,stroke-width:1.6px,color:#fff
 ```
 
-### Reproducible external tools
+### A workflow can declare what it needs
 
 ```yaml
 tools:
@@ -369,14 +357,18 @@ steps:
   - id: inspect
     run: jq --version
 
-  - id: transform
-    run: jq '.items[] | .name' data.json
-    depends: [inspect]
+  - id: summarize
+    action: python-script@v1
+    with:
+      input:
+        rows: [42, 8]
+      script: |
+        return {"total": sum(input["rows"])}
 ```
 
-Dagu installs declared portable CLIs before the DAG run, exposes them on `PATH` for host command steps, and caches them on each worker. You do not need to install a separate tool manager; Dagu remains a single binary. See the [Tools documentation](https://docs.dagu.sh/writing-workflows/tools) for package syntax, immutable refs, distributed worker behavior, sub-DAG scoping, and current limitations.
+Dagu installs declared portable CLIs before the DAG run, exposes them on `PATH` for host command steps, and caches them on each worker. Official and third-party Dagu Actions run as action packages with their own inputs, outputs, helper files, and tool dependencies. Tool provisioning uses [aqua](https://aquaproj.github.io/) as the default provider. See the [Tools documentation](https://docs.dagu.sh/writing-workflows/tools) and [Dagu Actions documentation](https://docs.dagu.sh/dagu-actions/) for package syntax, worker behavior, and current limitations.
 
-### Dagu Action package
+### Third-party action package
 
 ```yaml
 steps:
@@ -386,11 +378,11 @@ steps:
       text: "Build ${BUILD_ID} finished"
 
   - id: audit
-    depends: [notify]
+    depends: notify
     run: echo "Notification result: ${notify.outputs.messageId}"
 ```
 
-A Dagu Action package contains a DAG, manifest, schemas, and helper files behind an `action:` reference. Action DAGs publish caller-visible values with `stdout.outputs` or `action: outputs.write`, and callers read them with `${step.outputs.*}`. If `dagu-action.yaml` declares an `outputs` schema, Dagu validates the final action output object before exposing it to the caller; a mismatch fails the action step. When an action DAG invokes portable external CLIs, declare them in the action DAG's top-level `tools`; caller tools are not inherited, and `dagu-action.yaml` does not accept `tools`. See the [Dagu Actions documentation](https://docs.dagu.sh/dagu-actions/) for package layout and worker-mode behavior.
+A third-party Dagu Action package contains a DAG, manifest, schemas, and helper files behind an `action:` reference. Action DAGs publish caller-visible values with `stdout.outputs` or `action: outputs.write`, and callers read them with `${step.outputs.*}`. If `dagu-action.yaml` declares an `outputs` schema, Dagu validates the final action output object before exposing it to the caller; a mismatch fails the action step. When an action DAG invokes portable external CLIs, declare them in the action DAG's top-level `tools`; caller tools are not inherited, and `dagu-action.yaml` does not accept `tools`. See the [Dagu Actions documentation](https://docs.dagu.sh/dagu-actions/) for package layout and worker-mode behavior.
 
 ### Docker step
 
@@ -441,20 +433,22 @@ steps:
       dag: etl/extract
       params:
         SOURCE: s3://bucket/data.csv
+
   - name: transform
     action: dag.run
     with:
       dag: etl/transform
       params:
         INPUT: ${extract.outputs.result}
-    depends: [extract]
+    depends: extract
+
   - name: load
     action: dag.run
     with:
       dag: etl/load
       params:
         DATA: ${transform.outputs.result}
-    depends: [transform]
+    depends: transform
 ```
 
 ### Retry and error handling
@@ -500,19 +494,19 @@ steps:
 
   - id: approval
     action: noop
-    depends: [review]
+    depends: review
     approval:
       prompt: Review the review.md artifact. Approve to post an issue with the findings, or reject to skip.
 
   - id: read_review
     action: artifact.read
-    depends: [approval]
+    depends: approval
     with:
       path: review.md
 
   - id: post_issue
     run: gh issue create --title "Review Findings" --body-file "${read_review.stdout}"
-    depends: [read_review]
+    depends: read_review
 ```
 
 For more examples, see the [Examples documentation](https://docs.dagu.sh/writing-workflows/examples).
@@ -590,7 +584,7 @@ See [Custom Actions](https://docs.dagu.sh/dagu-actions/custom) and the [YAML Spe
 
 ## Dagu Actions
 
-Dagu Actions are reusable action packages maintained in the `dagucloud` GitHub organization. They use the same action package runtime as other versioned action packages, but callers use the short form `action: name@version`.
+Dagu Actions are official action packages maintained in the `dagucloud` GitHub organization. They use the same action package runtime as third-party action packages, but callers use the short form `action: name@version`.
 
 | Dagu Action | Purpose |
 |-------------|---------|
