@@ -25,7 +25,7 @@ Bring your existing data jobs as they are. Dagu adds the operational layer they 
 
 - **Local-first:** Workflows are file-based: One binary, no external database or broker required. Air-gapped ready.
 - **No rewrite:** Turn shell scripts, Python jobs, SQL, dbt, DuckDB, containers, and data-processing runbooks into pipelines without rewriting them into a framework.
-- **AI-agent ready:** Use your favorite AI agent through MCP to create, improve, debug, and run workflows.
+- **AI-agent ready:** Use your favorite AI agent through [MCP](https://docs.dagu.sh/getting-started/mcp#mcp-server) to create, improve, debug, and run workflows.
 
 For a quick look at how workflows are defined, see the [examples](https://docs.dagu.sh/writing-workflows/examples).
 
@@ -57,7 +57,7 @@ steps:
 
 The `tools` block pins external CLIs for reproducible runs. Dagu resolves packages such as `jqlang/jq` and `duckdb/duckdb` through the [Aqua standard registry](https://github.com/aquaproj/aqua-registry), installs the pinned versions before the run, and exposes them on `PATH` so workers do not depend on whichever `jq` or `duckdb` version happens to be installed locally.
 
-## Quick Look and Live Demo
+## Quick Look
 
 <div align="center">
   <img src="./assets/images/dagu-demo.gif" width="720" alt="Dagu demo showing the cockpit kanban view and YAML workflow editing">
@@ -201,7 +201,7 @@ Run Dagu on one machine, scale out with distributed workers, or use a managed Da
   </tr>
   <tr>
     <td width="50%" align="center" valign="top">
-      <strong>Dagu Cloud</strong><br>
+      <strong>Managed Server</strong><br>
       <img src="./assets/images/deployment-model-cloud.gif" width="100%" alt="Dagu Cloud deployment model with a managed Dagu server running in the cloud.">
     </td>
     <td width="50%" align="center" valign="top">
@@ -215,16 +215,16 @@ Run Dagu on one machine, scale out with distributed workers, or use a managed Da
 |------|--------|-----------|----------|
 | **Local single-server** | `dagu start-all` on one machine. | Same machine. | Development, small scheduled workloads, edge jobs, and simple internal automation. |
 | **Self-hosted** | Dagu server on your infrastructure. | Local execution or distributed workers on your infrastructure. | Teams that need ownership of infrastructure. |
-| **Dagu Cloud** | Full managed Dagu server in a dedicated, isolated gVisor instance on GKE. | Managed instance. | Teams that want Dagu operated for them without running the server themselves. |
+| **Managed Server** | Full managed Dagu server in a dedicated, isolated gVisor instance on GKE. | Managed instance. | Teams that want Dagu operated for them without running the server themselves. |
 | **Hybrid** | Full managed Dagu Cloud server. | Private workers in your infrastructure over mTLS. | Docker steps, private networks, specialized hardware, or data-local work. |
 
-### Licensing and Cloud
+### Licensing
 
-- **Community self-host:** GPLv3. No license key required. You operate the server, storage, upgrades, networking, and workers. Start with the [installation guide](https://docs.dagu.sh/getting-started/installation/).
+- **Community self-host:** No license key required. You operate the server, storage, upgrades, networking, and workers. Start with the [installation guide](https://docs.dagu.sh/getting-started/installation/).
 - **Self-host license:** Adds SSO, RBAC, audit logging, and incident SaaS integration to Dagu. See [self-host licensing](https://dagu.sh/pricing#self-host).
 - **Dagu managed instance:** Includes its own managed license. Private workers can run on your infrastructure.
 
-Managed Dagu Cloud instances do not expose a Docker daemon or Docker socket. Workflows that need Docker step execution should use self-hosted Dagu or a private worker with Docker access.
+Managed Dagu instances do not expose a Docker daemon or Docker socket. Workflows that need Docker step execution should use self-hosted Dagu or a private worker with Docker access.
 
 ## Architecture
 
