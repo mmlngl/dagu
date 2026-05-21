@@ -98,7 +98,7 @@ func NewScheduler(cfg SchedulerConfig) (*scheduler.Scheduler, error) {
 		} else {
 			sched.SetEventCollector(collector)
 		}
-		if notificationMonitor := newNotificationMonitor(ctx, cfg.Config, dagStore, cfg.LicenseManager, cfg.EventService); notificationMonitor != nil {
+		if notificationMonitor := newNotificationMonitor(ctx, cfg.Config, dagStore, cfg.EventService); notificationMonitor != nil {
 			sched.SetNotificationMonitor(notificationMonitor)
 		}
 		if incidentMonitor := newIncidentMonitor(ctx, cfg.Config, cfg.LicenseManager, cfg.EventService); incidentMonitor != nil {
@@ -132,7 +132,6 @@ func newNotificationMonitor(
 	ctx context.Context,
 	cfg *config.Config,
 	dagStore exec.DAGStore,
-	licenseManager *license.Manager,
 	eventService *eventstore.Service,
 ) *chatbridge.NotificationMonitor {
 	encKey, encErr := crypto.ResolveKey(cfg.Paths.DataDir)
@@ -153,16 +152,9 @@ func newNotificationMonitor(
 		logger.Warn(ctx, "Failed to create notification settings store", tag.Error(err))
 		return nil
 	}
-	var checker license.Checker
-	if licenseManager != nil {
-		checker = licenseManager.Checker()
-	}
 	notificationService := notificationservice.New(
 		store,
 		dagStore,
-		notificationservice.WithReusableChannelsEnabled(func() bool {
-			return license.HasActiveLicense(checker)
-		}),
 	)
 	stateFile := filepath.Join(cfg.Paths.DataDir, "notifications", "monitor-state.json")
 	return chatbridge.NewNotificationMonitor(

@@ -1713,7 +1713,7 @@ export interface paths {
         };
         /**
          * List notification routes
-         * @description Returns global and workspace notification channel routes. Notification channels and rules require an active Dagu license or trial. Developer, manager, or admin only.
+         * @description Returns global and workspace notification channel routes. Developer, manager, or admin only.
          */
         get: operations["listNotificationRoutes"];
         put?: never;
@@ -11245,7 +11245,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationRouteSetListResponse"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11286,7 +11286,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationRouteSet"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11340,7 +11340,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11392,7 +11392,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationRouteSet"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11457,7 +11457,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11507,7 +11507,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationChannelListResponse"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11561,7 +11561,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11604,7 +11604,7 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationChannel"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11669,7 +11669,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -11719,7 +11719,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Forbidden - requires an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -12892,7 +12892,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Forbidden - notification channels require an active Dagu license or trial */
+            /** @description Forbidden - insufficient permissions */
             403: {
                 headers: {
                     [name: string]: unknown;

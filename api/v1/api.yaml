@@ -4026,7 +4026,7 @@ paths:
   /notification-routes:
     get:
       summary: "List notification routes"
-      description: "Returns global and workspace notification channel routes. Notification channels and rules require an active Dagu license or trial. Developer, manager, or admin only."
+      description: "Returns global and workspace notification channel routes. Developer, manager, or admin only."
       operationId: "listNotificationRoutes"
       tags:
         - "notifications"
@@ -4040,7 +4040,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationRouteSetListResponse"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4069,7 +4069,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationRouteSet"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4109,7 +4109,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4149,7 +4149,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationRouteSet"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4200,7 +4200,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4235,7 +4235,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotificationChannelListResponse"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4277,7 +4277,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4317,7 +4317,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4370,7 +4370,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -4411,7 +4411,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - requires an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:
@@ -5286,7 +5286,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: "Forbidden - notification channels require an active Dagu license or trial"
+          description: "Forbidden - insufficient permissions"
           content:
             application/json:
               schema:

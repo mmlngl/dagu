@@ -719,11 +719,6 @@ var (
 		Code:       api.ErrorCodeForbidden,
 		Message:    "Audit logs require a Dagu Pro license",
 	}
-	errReusableNotificationChannelsNotLicensed = &Error{
-		HTTPStatus: http.StatusForbidden,
-		Code:       api.ErrorCodeForbidden,
-		Message:    "Notification channels and rules require an active Dagu license or trial",
-	}
 	errIncidentManagementNotLicensed = &Error{
 		HTTPStatus: http.StatusForbidden,
 		Code:       api.ErrorCodeForbidden,
@@ -780,16 +775,6 @@ func (a *API) requireLicensedAudit() error {
 	}
 	if !a.licenseManager.Checker().IsFeatureEnabled(license.FeatureAudit) {
 		return errAuditNotLicensed
-	}
-	return nil
-}
-
-func (a *API) requireLicensedReusableNotificationChannels() error {
-	if a.licenseManager == nil {
-		return errReusableNotificationChannelsNotLicensed
-	}
-	if !license.HasActiveLicense(a.licenseManager.Checker()) {
-		return errReusableNotificationChannelsNotLicensed
 	}
 	return nil
 }

@@ -406,9 +406,6 @@ func NewServer(ctx context.Context, cfg *config.Config, dr exec.DAGStore, drs ex
 			notificationSvc = notificationservice.New(
 				store,
 				dr,
-				notificationservice.WithReusableChannelsEnabled(func() bool {
-					return license.HasActiveLicense(licenseChecker)
-				}),
 				notificationservice.WithPublicURL(cfg.Server.PublicURL),
 			)
 			apiOpts = append(apiOpts, apiv1.WithNotificationService(notificationSvc))
