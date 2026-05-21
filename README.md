@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./assets/images/hero-logo.webp" width="480" alt="Dagu Logo">
   <br>
-  <p><strong>Make data scripts to durable workflows in minutes.</strong></p>
+  <p><strong>Turn any scripts to durable workflows in minutes.</strong></p>
   <p>
     <a href="https://docs.dagu.sh/overview/changelog"><img src="https://img.shields.io/github/release/dagucloud/dagu.svg?style=flat-square" alt="Latest Release"></a>
     <a href="https://github.com/dagucloud/dagu/actions/workflows/ci.yaml"><img src="https://img.shields.io/github/actions/workflow/status/dagucloud/dagu/ci.yaml?style=flat-square" alt="Build Status"></a>
@@ -16,16 +16,16 @@
   </p>
 </div>
 
-## Local-first Control Plane for Data Pipeline Scripts and Private Infrastructure
+## Local-first Control Plane for Existing Ops Automation and AI Agent Workflows
 
-Dagu turns existing scripts, SQL jobs, containers, SSH commands, and runbooks into scheduled, observable pipelines that run where your data already lives.
+Dagu turns existing shell scripts, Python scripts, SQL jobs, containers, SSH commands, and runbooks into scheduled, observable pipelines that run where your data already lives.
 
-Bring your existing data jobs as they are. Dagu adds the operational layer they are missing: scheduling, durable execution, logs, artifacts, queues, a Web UI, API/webhooks, distributed workers, and notifications.
+Define the workflow in plain YAML. Dagu adds the operational layer they are missing: scheduling, durable execution, logs, artifacts, queues, a Web UI, API/webhooks, distributed workers, and notifications.
 
 **Highlights:**
 
 - **Local-first:** Workflows are file-based: One binary, no external database or broker required. Air-gapped ready.
-- **No rewrite:** Turn shell scripts, Python jobs, SQL, dbt, DuckDB, containers, and data-processing runbooks into pipelines without rewriting them into a framework.
+- **CLI-oriented:** Keep your existing automation as shell scripts, Python jobs, SQL, dbt, DuckDB, containers, and data-processing runbooks into pipelines without rewriting them into a framework.
 - **AI-agent ready:** Use your favorite AI agent through [MCP](https://docs.dagu.sh/getting-started/mcp#mcp-server) to create, improve, debug, and run workflows.
 
 For a quick look at how workflows are defined, see the [examples](https://docs.dagu.sh/writing-workflows/examples).
@@ -279,6 +279,39 @@ Distributed:
           └────────┘    └────────┘    └────────┘
 ```
 
+## Parameter Definition
+
+Workflows can define parameters that render as typed input forms in the Web UI and can be passed as environment variables to steps.
+
+```yaml
+params:
+  - id: extract
+    run: ./scripts/extract.sh > data/raw.json
+    retry_policy:
+      limit: 3
+      interval_sec: 30
+
+  - name: customer_id
+    type: string
+    description: Customer or account identifier
+
+  - name: change_scope
+    type: string
+    description: What the repair is allowed to change
+    enum:
+      - metadata_only
+      - permissions
+      - full_account
+    default: metadata_only
+  - name: dry_run
+    type: boolean
+    default: true
+```
+
+<div align="center">
+  <img src="./assets/images/ui-params.webp" width="720" alt="Generated parameter input form in the Dagu Web UI">
+</div>
+
 ## Workflow Examples
 
 ### Parallel executions
@@ -416,6 +449,20 @@ steps:
       params:
         DATA: ${transform.outputs.result}
     depends: transform
+
+---
+
+# You can include multiple DAGs in the same YAML file, or reference DAGs defined in separate files.
+name: etl/extract
+
+tools:
+  - aws/aws-cli@2.11.14
+
+steps:
+  - name: download
+    run: aws s3 cp ${SOURCE} data.csv
+    outputs:
+      result: data.csv
 ```
 
 ### Retry and error handling
