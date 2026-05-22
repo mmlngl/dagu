@@ -224,9 +224,14 @@ func (d *queueDispatcher) dispatchQueuedItem(ctx context.Context, item exec.Queu
 	}
 
 	execErrCh := make(chan error, 1)
+	execDoneCh := make(chan struct{})
+	var execDoneErr error
 	go func() {
 		defer d.wakeUp()
-		if err := d.dagExecutor.ExecuteDAG(ctx, dag, coordinatorv1.Operation_OPERATION_RETRY, runID, status, status.TriggerType, status.ScheduleTime); err != nil {
+		err := d.dagExecutor.ExecuteDAG(ctx, dag, coordinatorv1.Operation_OPERATION_RETRY, runID, status, status.TriggerType, status.ScheduleTime)
+		execDoneErr = err
+		close(execDoneCh)
+		if err != nil {
 			logger.Error(ctx, "Failed to execute DAG", tag.Error(err))
 			if isPreStartExecutionFailure(err) {
 				select {
@@ -240,6 +245,14 @@ func (d *queueDispatcher) dispatchQueuedItem(ctx context.Context, item exec.Queu
 	return d.waitForStartup(ctx, queueName, runRef, startupWaitState{
 		launchedAt: time.Now(),
 		execErrCh:  execErrCh,
+		execDone: func() (bool, error) {
+			select {
+			case <-execDoneCh:
+				return true, execDoneErr
+			default:
+				return false, nil
+			}
+		},
 	})
 }
 
@@ -359,11 +372,21 @@ func (d *queueDispatcher) waitForStartup(ctx context.Context, queueName string, 
 	policy := backoff.NewExponentialBackoffPolicy(d.backoffConfig.InitialInterval)
 	policy.MaxInterval = d.backoffConfig.MaxInterval
 	policy.MaxRetries = d.backoffConfig.MaxRetries
+	if waitState.execDone != nil {
+		policy.MaxRetries = 0
+	}
 
 	var started bool
+	var startupObservationErrors int
 	operation := func(ctx context.Context) error {
 		var err error
 		started, err = d.checkStartupStatus(ctx, queueName, runRef, waitState)
+		if shouldBoundLocalStartupError(waitState, err) {
+			startupObservationErrors++
+			if d.backoffConfig.MaxRetries > 0 && startupObservationErrors > d.backoffConfig.MaxRetries {
+				return backoff.PermanentError(err)
+			}
+		}
 		return err
 	}
 
@@ -372,6 +395,13 @@ func (d *queueDispatcher) waitForStartup(ctx context.Context, queueName string, 
 	}
 
 	return started
+}
+
+func shouldBoundLocalStartupError(waitState startupWaitState, err error) bool {
+	return waitState.execDone != nil &&
+		err != nil &&
+		!errors.Is(err, errNotStarted) &&
+		!errors.Is(err, backoff.ErrPermanent)
 }
 
 func (d *queueDispatcher) checkStartupStatus(ctx context.Context, queueName string, runRef exec.DAGRunRef, waitState startupWaitState) (bool, error) {
@@ -390,7 +420,8 @@ func (d *queueDispatcher) checkStartupStatus(ctx context.Context, queueName stri
 		logger.Info(ctx, "DAG run has started (heartbeat detected)")
 		return true, nil
 	}
-	if d.inStartupGracePeriod(waitState.launchedAt) && d.dagRunLeaseStore == nil {
+	execDone, execDoneErr := waitState.executionDone()
+	if d.inStartupGracePeriod(waitState.launchedAt) && d.dagRunLeaseStore == nil && !execDone {
 		return false, errNotStarted
 	}
 
@@ -408,6 +439,12 @@ func (d *queueDispatcher) checkStartupStatus(ctx context.Context, queueName stri
 	if status.Status != core.Queued {
 		logger.Info(ctx, "DAG execution has started or finished", tag.Status(status.Status.String()))
 		return true, nil
+	}
+	if execDone {
+		if execDoneErr != nil {
+			return false, backoff.PermanentError(execDoneErr)
+		}
+		return false, backoff.PermanentError(errExecutionExitedBeforeStartup)
 	}
 	started, err := d.hasFreshDistributedLease(ctx, queueName, runRef, attempt, status)
 	if err != nil {
