@@ -49,12 +49,12 @@ import (
 	"github.com/dagucloud/dagu/internal/gitsync"
 	"github.com/dagucloud/dagu/internal/license"
 	_ "github.com/dagucloud/dagu/internal/llm/allproviders" // Register LLM providers
+	"github.com/dagucloud/dagu/internal/persis/file"
 	"github.com/dagucloud/dagu/internal/persis/fileagentconfig"
 	"github.com/dagucloud/dagu/internal/persis/fileagentmodel"
 	"github.com/dagucloud/dagu/internal/persis/fileagentoauth"
 	"github.com/dagucloud/dagu/internal/persis/fileagentskill"
 	"github.com/dagucloud/dagu/internal/persis/fileagentsoul"
-	"github.com/dagucloud/dagu/internal/persis/fileapikey"
 	"github.com/dagucloud/dagu/internal/persis/fileaudit"
 	"github.com/dagucloud/dagu/internal/persis/filebaseconfig"
 	"github.com/dagucloud/dagu/internal/persis/filedoc"
@@ -63,13 +63,11 @@ import (
 	"github.com/dagucloud/dagu/internal/persis/filememory"
 	"github.com/dagucloud/dagu/internal/persis/filenotification"
 	"github.com/dagucloud/dagu/internal/persis/fileremotenode"
-	"github.com/dagucloud/dagu/internal/persis/filesecret"
 	"github.com/dagucloud/dagu/internal/persis/filesession"
 	"github.com/dagucloud/dagu/internal/persis/filetokensecret"
 	"github.com/dagucloud/dagu/internal/persis/fileupgradecheck"
-	"github.com/dagucloud/dagu/internal/persis/fileuser"
-	"github.com/dagucloud/dagu/internal/persis/filewebhook"
 	"github.com/dagucloud/dagu/internal/persis/fileworkspace"
+	"github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/dagucloud/dagu/internal/remotenode"
 	"github.com/dagucloud/dagu/internal/runtime"
 	"github.com/dagucloud/dagu/internal/service/audit"
@@ -287,7 +285,7 @@ func NewServer(ctx context.Context, cfg *config.Config, dr exec.DAGStore, drs ex
 
 	var authSvc *authservice.Service
 	if cfg.Server.Auth.Mode == config.AuthModeBuiltin {
-		result, isSetupRequired, err := initBuiltinAuthService(ctx, cfg, collector)
+		result, isSetupRequired, err := initBuiltinAuthService(ctx, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize builtin auth service: %w", err)
 		}
@@ -378,8 +376,10 @@ func NewServer(ctx context.Context, cfg *config.Config, dr exec.DAGStore, drs ex
 	}
 
 	if encryptor != nil {
-		secretStore, secretErr := filesecret.New(filepath.Join(cfg.Paths.DataDir, "secrets"), encryptor)
-		if secretErr != nil {
+		secretBackend, secretBackendErr := file.New(cfg.Paths.DataDir)
+		if secretBackendErr != nil {
+			logger.Warn(ctx, "Failed to open file backend for secret store", tag.Error(secretBackendErr))
+		} else if secretStore, secretErr := store.NewSecretStore(secretBackend.Collection("secrets"), encryptor); secretErr != nil {
 			logger.Warn(ctx, "Failed to create secret store", tag.Error(secretErr))
 		} else {
 			apiOpts = append(apiOpts, apiv1.WithSecretStore(secretStore))
@@ -665,41 +665,23 @@ func (s *setupChecker) IsSetupRequired(ctx context.Context) bool {
 // initBuiltinAuthService creates the auth store and authentication service.
 // Uses the token secret provider chain to resolve the JWT signing secret
 // (auto-generating and persisting one if not configured).
-func initBuiltinAuthService(ctx context.Context, cfg *config.Config, collector *telemetry.Collector) (*builtinAuthResult, bool, error) {
+func initBuiltinAuthService(ctx context.Context, cfg *config.Config) (*builtinAuthResult, bool, error) {
 	// Resolve token secret via provider chain
 	tokenSecret, err := buildTokenSecretProvider(ctx, cfg).Resolve(ctx)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to resolve token secret: %w", err)
 	}
 
-	// Create individual stores with caching
-	limits := cfg.Cache.Limits()
-
-	userCache := fileutil.NewCache[*authmodel.User]("user", limits.User.Limit, limits.User.TTL)
-	userCache.StartEviction(ctx)
-	if collector != nil {
-		collector.RegisterCache(userCache)
-	}
-	userStore, err := fileuser.New(cfg.Paths.UsersDir, fileuser.WithFileCache(userCache))
+	userStore, err := store.NewUserStore(file.NewCollection(cfg.Paths.UsersDir))
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to create user store: %w", err)
 	}
 
-	apiKeyCache := fileutil.NewCache[*authmodel.APIKey]("api_key", limits.APIKey.Limit, limits.APIKey.TTL)
-	apiKeyCache.StartEviction(ctx)
-	if collector != nil {
-		collector.RegisterCache(apiKeyCache)
-	}
-	apiKeyStore, err := fileapikey.New(cfg.Paths.APIKeysDir, fileapikey.WithFileCache(apiKeyCache))
+	apiKeyStore, err := store.NewAPIKeyStore(file.NewCollection(cfg.Paths.APIKeysDir))
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to create API key store: %w", err)
 	}
 
-	webhookCache := fileutil.NewCache[*authmodel.Webhook]("webhook", limits.Webhook.Limit, limits.Webhook.TTL)
-	webhookCache.StartEviction(ctx)
-	if collector != nil {
-		collector.RegisterCache(webhookCache)
-	}
 	var webhookEncryptor *crypto.Encryptor
 	encKey, encErr := crypto.ResolveKey(cfg.Paths.DataDir)
 	if encErr != nil {
@@ -710,11 +692,7 @@ func initBuiltinAuthService(ctx context.Context, cfg *config.Config, collector *
 			logger.Warn(ctx, "Failed to create encryptor for webhook store", tag.Error(encErr))
 		}
 	}
-	webhookOpts := []filewebhook.Option{filewebhook.WithFileCache(webhookCache)}
-	if webhookEncryptor != nil {
-		webhookOpts = append(webhookOpts, filewebhook.WithEncryptor(webhookEncryptor))
-	}
-	webhookStore, err := filewebhook.New(cfg.Paths.WebhooksDir, webhookOpts...)
+	webhookStore, err := store.NewWebhookStore(file.NewCollection(cfg.Paths.WebhooksDir), webhookEncryptor)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to create webhook store: %w", err)
 	}

@@ -21,7 +21,8 @@ import (
 
 	authmodel "github.com/dagucloud/dagu/internal/auth"
 	"github.com/dagucloud/dagu/internal/cmn/config"
-	"github.com/dagucloud/dagu/internal/persis/fileuser"
+	"github.com/dagucloud/dagu/internal/persis/file"
+	persiststore "github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/dagucloud/dagu/internal/service/eventstore"
 	apiv1 "github.com/dagucloud/dagu/internal/service/frontend/api/v1"
 	frontendauth "github.com/dagucloud/dagu/internal/service/frontend/auth"
@@ -286,7 +287,7 @@ func TestInitBuiltinAuthService_AutoProvision(t *testing.T) {
 			Password: "securepass123",
 		})
 
-		result, setupRequired, err := initBuiltinAuthService(testContext(t), cfg, nil)
+		result, setupRequired, err := initBuiltinAuthService(testContext(t), cfg)
 		require.NoError(t, err)
 		assert.False(t, setupRequired, "setup should not be required after auto-provisioning")
 
@@ -310,13 +311,13 @@ func TestInitBuiltinAuthService_AutoProvision(t *testing.T) {
 			Password: "securepass123",
 		})
 
-		// Pre-create a user directly in the store
-		store, err := fileuser.New(cfg.Paths.UsersDir)
+		// Pre-create a user directly in the store (same collection as initBuiltinAuthService uses).
+		store, err := persiststore.NewUserStore(file.NewCollection(cfg.Paths.UsersDir))
 		require.NoError(t, err)
 		existing := authmodel.NewUser("existinguser", "$2a$12$K8gHXqrFdFvMwJBG0VlJGuAGz3FwBmTm8xnNQblN2tCxrQgPLmwHa", authmodel.RoleAdmin)
 		require.NoError(t, store.Create(testContext(t), existing))
 
-		result, setupRequired, err := initBuiltinAuthService(testContext(t), cfg, nil)
+		result, setupRequired, err := initBuiltinAuthService(testContext(t), cfg)
 		require.NoError(t, err)
 		assert.False(t, setupRequired)
 
@@ -330,7 +331,7 @@ func TestInitBuiltinAuthService_AutoProvision(t *testing.T) {
 		t.Parallel()
 		cfg := testConfig(t.TempDir(), config.InitialAdmin{})
 
-		_, setupRequired, err := initBuiltinAuthService(testContext(t), cfg, nil)
+		_, setupRequired, err := initBuiltinAuthService(testContext(t), cfg)
 		require.NoError(t, err)
 		assert.True(t, setupRequired, "setup should be required when initial_admin is not configured")
 	})
@@ -342,7 +343,7 @@ func TestInitBuiltinAuthService_AutoProvision(t *testing.T) {
 			Password: "short", // less than 8 characters
 		})
 
-		_, _, err := initBuiltinAuthService(testContext(t), cfg, nil)
+		_, _, err := initBuiltinAuthService(testContext(t), cfg)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to auto-provision initial admin user")
 	})
@@ -356,12 +357,12 @@ func TestInitBuiltinAuthService_AutoProvision(t *testing.T) {
 		})
 
 		// First call: provisions the user
-		_, setupRequired, err := initBuiltinAuthService(testContext(t), cfg, nil)
+		_, setupRequired, err := initBuiltinAuthService(testContext(t), cfg)
 		require.NoError(t, err)
 		assert.False(t, setupRequired)
 
 		// Second call: should not create a duplicate
-		result, setupRequired, err := initBuiltinAuthService(testContext(t), cfg, nil)
+		result, setupRequired, err := initBuiltinAuthService(testContext(t), cfg)
 		require.NoError(t, err)
 		assert.False(t, setupRequired)
 
@@ -380,7 +381,7 @@ func TestInitBuiltinAuthService_UserCanAuthenticate(t *testing.T) {
 		Password: "mypassword123",
 	})
 
-	result, _, err := initBuiltinAuthService(testContext(t), cfg, nil)
+	result, _, err := initBuiltinAuthService(testContext(t), cfg)
 	require.NoError(t, err)
 
 	// Authenticate via the auth service
