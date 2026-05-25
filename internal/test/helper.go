@@ -34,7 +34,6 @@ import (
 	"github.com/dagucloud/dagu/internal/persis/filebaseconfig"
 	"github.com/dagucloud/dagu/internal/persis/filedag"
 	"github.com/dagucloud/dagu/internal/persis/filedagrun"
-	"github.com/dagucloud/dagu/internal/persis/filedistributed"
 	"github.com/dagucloud/dagu/internal/persis/fileserviceregistry"
 	"github.com/dagucloud/dagu/internal/persis/store"
 	runtimepkg "github.com/dagucloud/dagu/internal/runtime"
@@ -294,14 +293,16 @@ func Setup(t *testing.T, opts ...HelperOption) Helper {
 	queueStore := store.NewQueueStore(file.NewCollection(cfg.Paths.QueueDir))
 	serviceMonitor := fileserviceregistry.New(cfg.Paths.ServiceRegistryDir)
 	distributedDir := filepath.Join(cfg.Paths.DataDir, "distributed")
-	var dispatchStoreOpts []filedistributed.DispatchTaskStoreOption
+	var dispatchStoreOpts []store.DispatchTaskStoreOption
 	if options.StaleLeaseThreshold > 0 {
-		dispatchStoreOpts = append(dispatchStoreOpts, filedistributed.WithDispatchReservationTTL(options.StaleLeaseThreshold))
+		dispatchStoreOpts = append(dispatchStoreOpts, store.WithDispatchReservationTTL(options.StaleLeaseThreshold))
 	}
-	dispatchTaskStore := filedistributed.NewDispatchTaskStore(distributedDir, dispatchStoreOpts...)
+	dispatchTaskStore := store.NewDispatchTaskStore(file.NewCollection(distributedDir), dispatchStoreOpts...)
 	workerHeartbeatStore := store.NewWorkerHeartbeatStore(file.NewCollection(filepath.Join(distributedDir, "workers")))
-	dagRunLeaseStore := filedistributed.NewDAGRunLeaseStore(distributedDir)
-	activeDistributedRunStore := filedistributed.NewActiveDistributedRunStore(distributedDir)
+	leaseCollection := file.NewCollectionWithLockRoot(filepath.Join(distributedDir, "leases"), distributedDir)
+	activeRunCollection := file.NewCollectionWithLockRoot(filepath.Join(distributedDir, "active-runs"), distributedDir)
+	dagRunLeaseStore := store.NewDAGRunLeaseStore(leaseCollection)
+	activeDistributedRunStore := store.NewActiveDistributedRunStore(activeRunCollection)
 
 	drm := runtimepkg.NewManager(runStore, procStore, cfg)
 
