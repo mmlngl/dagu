@@ -15,19 +15,22 @@ import (
 	"time"
 
 	"github.com/dagucloud/dagu/internal/cmn/config"
+	"github.com/dagucloud/dagu/internal/cmn/fileutil"
 	"github.com/dagucloud/dagu/internal/core/exec"
-	"github.com/dagucloud/dagu/internal/persis/fileproc"
+	"github.com/dagucloud/dagu/internal/persis/file"
+	"github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/stretchr/testify/require"
 )
 
 const procFilePattern = "proc_*.proc"
 
-func newProcStore(cfg *config.Config) *fileproc.Store {
-	return fileproc.New(
-		cfg.Paths.ProcDir,
-		fileproc.WithHeartbeatInterval(cfg.Proc.HeartbeatInterval),
-		fileproc.WithHeartbeatSyncInterval(cfg.Proc.HeartbeatSyncInterval),
-		fileproc.WithStaleThreshold(cfg.Proc.StaleThreshold),
+func newProcStore(cfg *config.Config) *store.ProcStore {
+	return store.NewProcStore(
+		file.NewCollection(cfg.Paths.ProcDir),
+		store.WithProcHeartbeatInterval(cfg.Proc.HeartbeatInterval),
+		store.WithProcHeartbeatSyncInterval(cfg.Proc.HeartbeatSyncInterval),
+		store.WithProcStaleThreshold(cfg.Proc.StaleThreshold),
+		store.WithProcLegacyDir(cfg.Paths.ProcDir),
 	)
 }
 
@@ -143,7 +146,7 @@ func readHeartbeat(procFile string) (uint64, time.Time, error) {
 		return 0, time.Time{}, err
 	}
 
-	data, err := os.ReadFile(procFile) //nolint:gosec // procFile is created in an isolated test temp directory
+	data, err := fileutil.ReadFileWithRetry(procFile)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
