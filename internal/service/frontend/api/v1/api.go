@@ -18,6 +18,7 @@ import (
 	"github.com/dagucloud/dagu/api/v1"
 	"github.com/dagucloud/dagu/internal/agent"
 	"github.com/dagucloud/dagu/internal/agentoauth"
+	"github.com/dagucloud/dagu/internal/agentsnapshot"
 	"github.com/dagucloud/dagu/internal/auth"
 	"github.com/dagucloud/dagu/internal/cmn/config"
 	"github.com/dagucloud/dagu/internal/cmn/eval"
@@ -96,7 +97,11 @@ type API struct {
 	schedulerStateStore  scheduler.WatermarkStore
 	dagMutationNotifier  func(fileName string)
 	docMutationNotifier  func()
+	snapshotStoreFactory agentsnapshot.StoreFactory
+	baseConfigFactory    WorkspaceBaseConfigStoreFactory
 }
+
+type WorkspaceBaseConfigStoreFactory func(dagsDir, workspaceName string) (baseconfig.Store, error)
 
 type NotificationService interface {
 	GetByDAGName(ctx context.Context, dagName string) (*notificationmodel.Settings, error)
@@ -220,6 +225,18 @@ func WithTunnelService(ts *tunnel.Service) APIOption {
 func WithBaseConfigStore(store baseconfig.Store) APIOption {
 	return func(a *API) {
 		a.baseConfigStore = store
+	}
+}
+
+func WithWorkspaceBaseConfigStoreFactory(factory WorkspaceBaseConfigStoreFactory) APIOption {
+	return func(a *API) {
+		a.baseConfigFactory = factory
+	}
+}
+
+func WithSnapshotStoreFactory(factory agentsnapshot.StoreFactory) APIOption {
+	return func(a *API) {
+		a.snapshotStoreFactory = factory
 	}
 }
 
@@ -390,12 +407,19 @@ func New(
 	for _, opt := range opts {
 		opt(a)
 	}
+	a.requireValidBaseConfigWiring()
 
 	// Set read-only mode flag based on git sync config
 	// When enabled with push disabled, DAG write operations are blocked
 	a.dagWritesDisabled = cfg.GitSync.Enabled && !cfg.GitSync.PushEnabled
 
 	return a
+}
+
+func (a *API) requireValidBaseConfigWiring() {
+	if a.baseConfigStore != nil && a.baseConfigFactory == nil {
+		panic("api: workspace base config store factory must be configured when base config store is configured")
+	}
 }
 
 func (a *API) notifyDAGMutation(fileName string) {

@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"time"
 
 	"github.com/dagucloud/dagu/internal/cmn/config"
@@ -19,11 +18,6 @@ import (
 	"github.com/dagucloud/dagu/internal/core/exec"
 	"github.com/dagucloud/dagu/internal/license"
 	"github.com/dagucloud/dagu/internal/persis/file"
-	"github.com/dagucloud/dagu/internal/persis/filedagrun"
-	"github.com/dagucloud/dagu/internal/persis/fileeventstore"
-	"github.com/dagucloud/dagu/internal/persis/filegithubdispatch"
-	"github.com/dagucloud/dagu/internal/persis/fileincident"
-	"github.com/dagucloud/dagu/internal/persis/filenotification"
 	"github.com/dagucloud/dagu/internal/persis/schedulerstore"
 	"github.com/dagucloud/dagu/internal/runtime"
 	"github.com/dagucloud/dagu/internal/service/chatbridge"
@@ -72,12 +66,10 @@ func NewScheduler(cfg SchedulerConfig) (*scheduler.Scheduler, error) {
 
 	statusCache := fileutil.NewCache[*exec.DAGRunStatus]("scheduler_dag_run_status", limits.DAGRun.Limit, limits.DAGRun.TTL)
 	statusCache.StartEviction(ctx)
-	schedulerRunStore := filedagrun.New(
-		cfg.Config.Paths.DAGRunsDir,
-		filedagrun.WithArtifactDir(cfg.Config.Paths.ArtifactDir),
-		filedagrun.WithLatestStatusToday(false),
-		filedagrun.WithLocation(cfg.Config.Core.Location),
-		filedagrun.WithHistoryFileCache(statusCache),
+	schedulerRunStore := file.NewDAGRunStore(
+		cfg.Config,
+		file.WithDAGRunLatestStatusToday(false),
+		file.WithDAGRunHistoryFileCache(statusCache),
 	)
 	schedulerRunManager := runtime.NewManager(schedulerRunStore, cfg.ProcStore, cfg.Config)
 
@@ -91,13 +83,14 @@ func NewScheduler(cfg SchedulerConfig) (*scheduler.Scheduler, error) {
 		cfg.ServiceRegistry,
 		coordinatorClient,
 		watermarkStore,
+		scheduler.WithSnapshotStoreFactory(file.NewSnapshotStores),
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	if cfg.EventService != nil {
-		collector, eventErr := fileeventstore.NewCollector(cfg.Config.Paths.EventStoreDir, cfg.Config.EventStore.RetentionDays)
+		collector, eventErr := file.NewEventCollector(cfg.Config)
 		if eventErr != nil {
 			logger.Warn(ctx, "Failed to initialize event collector; continuing without collection", tag.Error(eventErr))
 		} else {
@@ -114,7 +107,7 @@ func NewScheduler(cfg SchedulerConfig) (*scheduler.Scheduler, error) {
 	sched.SetDAGRunLeaseStore(cfg.DAGRunLeaseStore)
 	sched.SetDispatchTaskStore(cfg.DispatchTaskStore)
 	if cfg.LicenseManager != nil {
-		githubTracker := filegithubdispatch.New(filepath.Join(cfg.Config.Paths.DataDir, "github-dispatch"))
+		githubTracker := file.NewGitHubDispatchTracker(cfg.Config)
 		sched.SetGitHubDispatchWorker(scheduler.NewGitHubDispatchWorker(
 			cfg.Config,
 			dagStore,
@@ -149,10 +142,7 @@ func newNotificationMonitor(
 		logger.Warn(ctx, "Failed to create encryptor for notification settings store", tag.Error(encErr))
 		return nil
 	}
-	store, err := filenotification.New(
-		filepath.Join(cfg.Paths.DataDir, "notifications", "dags"),
-		filenotification.WithEncryptor(encryptor),
-	)
+	store, err := file.NewNotificationStore(cfg, encryptor)
 	if err != nil {
 		logger.Warn(ctx, "Failed to create notification settings store", tag.Error(err))
 		return nil
@@ -161,7 +151,7 @@ func newNotificationMonitor(
 		store,
 		dagStore,
 	)
-	stateFile := filepath.Join(cfg.Paths.DataDir, "notifications", "monitor-state.json")
+	stateFile := file.NotificationMonitorStateFile(cfg)
 	return chatbridge.NewNotificationMonitor(
 		eventService,
 		stateFile,
@@ -189,10 +179,7 @@ func newIncidentMonitor(
 		logger.Warn(ctx, "Failed to create encryptor for incident settings store", tag.Error(encErr))
 		return nil
 	}
-	store, err := fileincident.New(
-		filepath.Join(cfg.Paths.DataDir, "incidents"),
-		fileincident.WithEncryptor(encryptor),
-	)
+	store, err := file.NewIncidentStore(cfg, encryptor)
 	if err != nil {
 		logger.Warn(ctx, "Failed to create incident settings store", tag.Error(err))
 		return nil
@@ -208,7 +195,7 @@ func newIncidentMonitor(
 		}),
 		incidentservice.WithPublicURL(cfg.Server.PublicURL),
 	)
-	stateFile := filepath.Join(cfg.Paths.DataDir, "incidents", "monitor-state.json")
+	stateFile := file.IncidentMonitorStateFile(cfg)
 	monitorConfig := chatbridge.DefaultNotificationMonitorConfig()
 	monitorConfig.UrgentWindow = time.Second
 	monitorConfig.SuccessWindow = time.Second

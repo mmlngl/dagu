@@ -11,13 +11,10 @@ import (
 
 	"github.com/dagucloud/dagu/internal/core/exec"
 	"github.com/dagucloud/dagu/internal/persis/file"
-	"github.com/dagucloud/dagu/internal/persis/filedag"
-	"github.com/dagucloud/dagu/internal/persis/filedagrun"
 	"github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/dagucloud/dagu/internal/runtime"
 	"github.com/dagucloud/dagu/internal/service/coordinator"
 	"github.com/dagucloud/dagu/internal/service/scheduler"
-	"github.com/dagucloud/dagu/internal/workspace"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,17 +58,9 @@ func SetupScheduler(t *testing.T, opts ...HelperOption) *Scheduler {
 	helper.Config.Scheduler.LockRetryInterval = 50 * time.Millisecond
 
 	// Create additional stores needed for scheduler
-	ds := filedag.New(
-		helper.Config.Paths.DAGsDir,
-		filedag.WithFlagsBaseDir(helper.Config.Paths.SuspendFlagsDir),
-		filedag.WithBaseConfig(helper.Config.Paths.BaseConfig),
-		filedag.WithWorkspaceBaseConfigDir(workspace.BaseConfigDir(helper.Config.Paths.DAGsDir)),
-		filedag.WithSkipExamples(true),
-	)
-	drs := filedagrun.New(
-		helper.Config.Paths.DAGRunsDir,
-		filedagrun.WithArtifactDir(helper.Config.Paths.ArtifactDir),
-	)
+	ds, err := file.NewDAGStore(helper.Config, file.WithDAGSkipExamples(true))
+	require.NoError(t, err)
+	drs := file.NewDAGRunStore(helper.Config)
 	ps := newProcStore(helper.Config)
 	qs := store.NewQueueStore(file.NewCollection(helper.Config.Paths.QueueDir))
 

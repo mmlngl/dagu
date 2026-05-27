@@ -100,14 +100,22 @@ func runWorker(ctx *Context, _ []string) error {
 		return err
 	}
 
-	w := worker.NewWorker(workerID, maxActiveRuns, coordinatorCli, labels, ctx.Config)
+	w := worker.NewWorker(
+		workerID,
+		maxActiveRuns,
+		coordinatorCli,
+		labels,
+		ctx.Config,
+		worker.WithDAGRunStore(ctx.DAGRunStore),
+	)
 
 	if useRemoteHandler {
 		handlerCfg := worker.RemoteTaskHandlerConfig{
-			WorkerID:          workerID,
-			CoordinatorClient: coordinatorCli,
-			PeerConfig:        ctx.Config.Core.Peer,
-			Config:            ctx.Config,
+			WorkerID:           workerID,
+			CoordinatorClient:  coordinatorCli,
+			PeerConfig:         ctx.Config.Core.Peer,
+			Config:             ctx.Config,
+			AgentStoresFactory: cmdprocess.NewRuntimeAgentStores,
 		}
 		w.SetHandler(worker.NewRemoteTaskHandler(handlerCfg))
 		logger.Info(ctx, "Using remote task handler for shared-nothing mode")

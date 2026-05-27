@@ -1,14 +1,13 @@
 // Copyright (C) 2026 Yota Hamada
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package filedagrun
+package dagrun
 
 import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -16,7 +15,7 @@ import (
 	"github.com/dagucloud/dagu/internal/core/exec"
 )
 
-var ErrInvalidQueryCursor = errors.New("filedagrun: invalid query cursor")
+var ErrInvalidQueryCursor = exec.ErrInvalidQueryCursor
 
 // queryCursorVersion 2 reflects the filter hash JSON key migration from tags to labels.
 const queryCursorVersion = 2
@@ -39,7 +38,7 @@ func encodeQueryCursor(opts exec.ListDAGRunStatusesOptions, key dagRunListKey) (
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("filedagrun: marshal query cursor: %w", err)
+		return "", fmt.Errorf("dagrun: marshal query cursor: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(data), nil
 }

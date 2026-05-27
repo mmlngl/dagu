@@ -4,6 +4,7 @@
 package filegithubdispatch
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +12,9 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/dagucloud/dagu/internal/cmn/fileutil"
+	"github.com/dagucloud/dagu/internal/githubdispatch"
 )
 
 const (
@@ -22,13 +23,7 @@ const (
 	filePerm    = 0600
 )
 
-type TrackedJob struct {
-	JobID     string    `json:"job_id"`
-	DAGName   string    `json:"dag_name"`
-	DAGRunID  string    `json:"dag_run_id"`
-	Phase     string    `json:"phase"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
+type TrackedJob = githubdispatch.TrackedJob
 
 type Store struct {
 	dir string
@@ -39,19 +34,28 @@ func New(dir string) *Store {
 	return &Store{dir: dir}
 }
 
-func (s *Store) Upsert(job TrackedJob) error {
+func (s *Store) Upsert(ctx context.Context, job TrackedJob) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	jobs, err := s.loadLocked()
 	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	jobs[job.JobID] = job
 	return s.saveLocked(jobs)
 }
 
-func (s *Store) Delete(jobID string) error {
+func (s *Store) Delete(ctx context.Context, jobID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -59,16 +63,25 @@ func (s *Store) Delete(jobID string) error {
 	if err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	delete(jobs, jobID)
 	return s.saveLocked(jobs)
 }
 
-func (s *Store) List() ([]TrackedJob, error) {
+func (s *Store) List(ctx context.Context) ([]TrackedJob, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	jobs, err := s.loadLocked()
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	out := make([]TrackedJob, 0, len(jobs))

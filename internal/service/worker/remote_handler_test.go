@@ -21,6 +21,7 @@ import (
 	"github.com/dagucloud/dagu/internal/core"
 	"github.com/dagucloud/dagu/internal/core/exec"
 	"github.com/dagucloud/dagu/internal/dagstate"
+	"github.com/dagucloud/dagu/internal/persis/file"
 	"github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/dagucloud/dagu/internal/persis/testutil"
 	"github.com/dagucloud/dagu/internal/proto/convert"
@@ -866,6 +867,9 @@ func TestAgentStoresFromSnapshot_HydratesSnapshotStores(t *testing.T) {
 				DataDir: t.TempDir(),
 			},
 		},
+		agentStoresFactory: func(ctx context.Context, cfg *config.Config) agent.RuntimeStores {
+			return file.NewAgentStores(ctx, cfg)
+		},
 	}
 	payload, err := agent.MarshalSnapshot(&agent.Snapshot{
 		Config: &agent.Config{
@@ -891,25 +895,25 @@ func TestAgentStoresFromSnapshot_HydratesSnapshotStores(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	stores, err := handler.agentStoresFromSnapshot(payload)
+	stores, err := handler.agentStoresFromSnapshot(context.Background(), payload)
 	require.NoError(t, err)
-	require.NotNil(t, stores.configStore)
-	require.NotNil(t, stores.modelStore)
-	require.NotNil(t, stores.soulStore)
-	require.NotNil(t, stores.memoryStore)
-	require.NotNil(t, stores.secretStore)
-	assert.Nil(t, stores.oauthManager)
+	require.NotNil(t, stores.ConfigStore)
+	require.NotNil(t, stores.ModelStore)
+	require.NotNil(t, stores.SoulStore)
+	require.NotNil(t, stores.MemoryStore)
+	require.NotNil(t, stores.SecretStore)
+	assert.Nil(t, stores.OAuthManager)
 
-	cfg, err := stores.configStore.Load(context.Background())
+	cfg, err := stores.ConfigStore.Load(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "model-default", cfg.DefaultModelID)
-	model, err := stores.modelStore.GetByID(context.Background(), "model-default")
+	model, err := stores.ModelStore.GetByID(context.Background(), "model-default")
 	require.NoError(t, err)
 	assert.Equal(t, "gpt-5.4", model.Model)
-	soul, err := stores.soulStore.GetByID(context.Background(), "helper")
+	soul, err := stores.SoulStore.GetByID(context.Background(), "helper")
 	require.NoError(t, err)
 	assert.Equal(t, "Helper", soul.Name)
-	globalMemory, err := stores.memoryStore.LoadGlobalMemory(context.Background())
+	globalMemory, err := stores.MemoryStore.LoadGlobalMemory(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "global memory", globalMemory)
 }

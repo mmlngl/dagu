@@ -15,9 +15,7 @@ import (
 	"time"
 
 	"github.com/dagucloud/dagu/internal/agent"
-	"github.com/dagucloud/dagu/internal/agentoauth"
 	"github.com/dagucloud/dagu/internal/cmn/config"
-	"github.com/dagucloud/dagu/internal/cmn/crypto"
 	"github.com/dagucloud/dagu/internal/cmn/fileutil"
 	"github.com/dagucloud/dagu/internal/cmn/logger"
 	"github.com/dagucloud/dagu/internal/cmn/logger/tag"
@@ -27,19 +25,11 @@ import (
 	"github.com/dagucloud/dagu/internal/core/exec"
 	"github.com/dagucloud/dagu/internal/core/spec"
 	"github.com/dagucloud/dagu/internal/dagstate"
-	"github.com/dagucloud/dagu/internal/persis/file"
-	"github.com/dagucloud/dagu/internal/persis/fileagentconfig"
-	"github.com/dagucloud/dagu/internal/persis/fileagentmodel"
-	"github.com/dagucloud/dagu/internal/persis/fileagentoauth"
-	"github.com/dagucloud/dagu/internal/persis/fileagentsoul"
-	"github.com/dagucloud/dagu/internal/persis/filememory"
-	persiststore "github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/dagucloud/dagu/internal/proto/convert"
 	"github.com/dagucloud/dagu/internal/runtime"
 	rtagent "github.com/dagucloud/dagu/internal/runtime/agent"
 	"github.com/dagucloud/dagu/internal/runtime/remote"
 	"github.com/dagucloud/dagu/internal/runtime/workspacebundle"
-	secretpkg "github.com/dagucloud/dagu/internal/secret"
 	"github.com/dagucloud/dagu/internal/service/coordinator"
 	dagutools "github.com/dagucloud/dagu/internal/tools"
 	daguaqua "github.com/dagucloud/dagu/internal/tools/aqua"
@@ -68,7 +58,12 @@ type RemoteTaskHandlerConfig struct {
 	PeerConfig config.Peer
 	// Config is the main application configuration
 	Config *config.Config
+	// AgentStoresFactory creates backend-specific agent runtime stores.
+	AgentStoresFactory AgentStoresFactory
 }
+
+// AgentStoresFactory wires backend-specific agent runtime stores.
+type AgentStoresFactory func(context.Context, *config.Config) agent.RuntimeStores
 
 // NewRemoteTaskHandler creates a new TaskHandler that runs tasks in-process
 // with status pushing and log streaming to the coordinator.
@@ -83,28 +78,30 @@ func NewRemoteTaskHandler(cfg RemoteTaskHandlerConfig) TaskHandler {
 		}
 	}
 	return &remoteTaskHandler{
-		workerID:          cfg.WorkerID,
-		coordinatorClient: cfg.CoordinatorClient,
-		dagRunStore:       cfg.DAGRunStore,
-		dagStore:          cfg.DAGStore,
-		dagRunMgr:         cfg.DAGRunMgr,
-		stateStore:        stateStore,
-		serviceRegistry:   cfg.ServiceRegistry,
-		peerConfig:        cfg.PeerConfig,
-		config:            cfg.Config,
+		workerID:           cfg.WorkerID,
+		coordinatorClient:  cfg.CoordinatorClient,
+		dagRunStore:        cfg.DAGRunStore,
+		dagStore:           cfg.DAGStore,
+		dagRunMgr:          cfg.DAGRunMgr,
+		stateStore:         stateStore,
+		serviceRegistry:    cfg.ServiceRegistry,
+		peerConfig:         cfg.PeerConfig,
+		config:             cfg.Config,
+		agentStoresFactory: cfg.AgentStoresFactory,
 	}
 }
 
 type remoteTaskHandler struct {
-	workerID          string
-	coordinatorClient coordinator.Client
-	dagRunStore       exec.DAGRunStore
-	dagStore          exec.DAGStore
-	dagRunMgr         runtime.Manager
-	stateStore        dagstate.Store
-	serviceRegistry   exec.ServiceRegistry
-	peerConfig        config.Peer
-	config            *config.Config
+	workerID           string
+	coordinatorClient  coordinator.Client
+	dagRunStore        exec.DAGRunStore
+	dagStore           exec.DAGStore
+	dagRunMgr          runtime.Manager
+	stateStore         dagstate.Store
+	serviceRegistry    exec.ServiceRegistry
+	peerConfig         config.Peer
+	config             *config.Config
+	agentStoresFactory AgentStoresFactory
 }
 
 // Handle executes a task in-process with remote status/log streaming
@@ -290,14 +287,7 @@ type retryConfig struct {
 	triggerType core.TriggerType
 }
 
-type agentStoreBundle struct {
-	configStore  agent.ConfigStore
-	modelStore   agent.ModelStore
-	soulStore    agent.SoulStore
-	memoryStore  agent.MemoryStore
-	oauthManager *agentoauth.Manager
-	secretStore  secretpkg.Store
-}
+type agentStoreBundle = agent.RuntimeStores
 
 type taskInitError struct {
 	err error
@@ -355,52 +345,13 @@ func (h *remoteTaskHandler) createRemoteHandlers(dagRunID, dagName string, root 
 
 // agentStores creates the agent config, model, soul, memory, and OAuth stores from the config paths.
 func (h *remoteTaskHandler) agentStores(ctx context.Context) agentStoreBundle {
-	var bundle agentStoreBundle
-	bundle.secretStore = h.secretStore(ctx)
-
-	acs, err := fileagentconfig.New(h.config.Paths.DataDir)
-	if err != nil {
-		logger.Warn(ctx, "Failed to create agent config store", tag.Error(err))
-		return bundle
+	if h.agentStoresFactory == nil {
+		return agentStoreBundle{}
 	}
-	if acs == nil {
-		return bundle
-	}
-	bundle.configStore = acs
-
-	ams, err := fileagentmodel.New(filepath.Join(h.config.Paths.DataDir, "agent", "models"))
-	if err != nil {
-		logger.Warn(ctx, "Failed to create agent model store", tag.Error(err))
-		return bundle
-	}
-	bundle.modelStore = ams
-
-	soulsDir := filepath.Join(h.config.Paths.DAGsDir, "souls")
-	soulStore, err := fileagentsoul.New(ctx, soulsDir)
-	if err != nil {
-		logger.Warn(ctx, "Failed to create agent soul store", tag.Error(err))
-		return bundle
-	}
-	bundle.soulStore = soulStore
-
-	ms, err := filememory.New(h.config.Paths.DAGsDir)
-	if err != nil {
-		logger.Warn(ctx, "Failed to create agent memory store", tag.Error(err))
-		return bundle
-	}
-	bundle.memoryStore = ms
-
-	oauthManager, err := fileagentoauth.NewManager(h.config.Paths.DataDir)
-	if err != nil {
-		logger.Warn(ctx, "Failed to create agent OAuth store", tag.Error(err))
-		return bundle
-	}
-	bundle.oauthManager = oauthManager
-
-	return bundle
+	return h.agentStoresFactory(ctx, h.config)
 }
 
-func (h *remoteTaskHandler) agentStoresFromSnapshot(snapshotPayload []byte) (agentStoreBundle, error) {
+func (h *remoteTaskHandler) agentStoresFromSnapshot(ctx context.Context, snapshotPayload []byte) (agentStoreBundle, error) {
 	snapshot, err := agent.UnmarshalSnapshot(snapshotPayload)
 	if err != nil {
 		return agentStoreBundle{}, err
@@ -417,40 +368,14 @@ func (h *remoteTaskHandler) agentStoresFromSnapshot(snapshotPayload []byte) (age
 		return agentStoreBundle{}, fmt.Errorf("agent snapshot is missing models")
 	}
 
+	runtimeStores := h.agentStores(ctx)
 	return agentStoreBundle{
-		configStore: stores.ConfigStore,
-		modelStore:  stores.ModelStore,
-		soulStore:   stores.SoulStore,
-		memoryStore: stores.MemoryStore,
-		secretStore: h.secretStore(context.Background()),
+		ConfigStore: stores.ConfigStore,
+		ModelStore:  stores.ModelStore,
+		SoulStore:   stores.SoulStore,
+		MemoryStore: stores.MemoryStore,
+		SecretStore: runtimeStores.SecretStore,
 	}, nil
-}
-
-func (h *remoteTaskHandler) secretStore(ctx context.Context) secretpkg.Store {
-	if h.config == nil || h.config.Paths.DataDir == "" {
-		return nil
-	}
-	encKey, encErr := crypto.ResolveKey(h.config.Paths.DataDir)
-	if encErr != nil {
-		logger.Warn(ctx, "Failed to resolve encryption key for secret store", tag.Error(encErr))
-		return nil
-	}
-	enc, encErr := crypto.NewEncryptor(encKey)
-	if encErr != nil {
-		logger.Warn(ctx, "Failed to create encryptor for secret store", tag.Error(encErr))
-		return nil
-	}
-	backend, backendErr := file.New(h.config.Paths.DataDir)
-	if backendErr != nil {
-		logger.Warn(ctx, "Failed to open file backend for secret store", tag.Error(backendErr))
-		return nil
-	}
-	store, storeErr := persiststore.NewSecretStore(backend.Collection("secrets"), enc)
-	if storeErr != nil {
-		logger.Warn(ctx, "Failed to create secret store", tag.Error(storeErr))
-		return nil
-	}
-	return store
 }
 
 // loadDAG loads the DAG from task definition.
@@ -656,7 +581,7 @@ func (h *remoteTaskHandler) executeDAGRun(
 	// Create agent stores for agent step execution
 	var agentStores agentStoreBundle
 	if len(agentSnapshot) > 0 {
-		agentStores, err = h.agentStoresFromSnapshot(agentSnapshot)
+		agentStores, err = h.agentStoresFromSnapshot(ctx, agentSnapshot)
 		if err != nil {
 			return newTaskInitError(fmt.Errorf("hydrate agent snapshot: %w", err))
 		}
@@ -681,16 +606,16 @@ func (h *remoteTaskHandler) executeDAGRun(
 		AttemptID:         attemptID,
 		DAGRunStore:       h.dagRunStore,
 		StateStore:        h.stateStore,
-		SecretStore:       agentStores.secretStore,
+		SecretStore:       agentStores.SecretStore,
 		ServiceRegistry:   h.serviceRegistry,
 		RootDAGRun:        root,
 		PeerConfig:        h.peerConfig,
 		DefaultExecMode:   h.config.DefaultExecMode,
-		AgentConfigStore:  agentStores.configStore,
-		AgentModelStore:   agentStores.modelStore,
-		AgentSoulStore:    agentStores.soulStore,
-		AgentMemoryStore:  agentStores.memoryStore,
-		AgentOAuthManager: agentStores.oauthManager,
+		AgentConfigStore:  agentStores.ConfigStore,
+		AgentModelStore:   agentStores.ModelStore,
+		AgentSoulStore:    agentStores.SoulStore,
+		AgentMemoryStore:  agentStores.MemoryStore,
+		AgentOAuthManager: agentStores.OAuthManager,
 		ScheduleTime:      scheduleTime,
 		ArtifactDir:       env.artifactDir,
 		ArtifactFinalizer: artifactUploader,

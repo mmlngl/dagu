@@ -32,10 +32,6 @@ import (
 	"github.com/dagucloud/dagu/internal/core/spec"
 	"github.com/dagucloud/dagu/internal/dagstate"
 	"github.com/dagucloud/dagu/internal/persis/file"
-	"github.com/dagucloud/dagu/internal/persis/filebaseconfig"
-	"github.com/dagucloud/dagu/internal/persis/filedag"
-	"github.com/dagucloud/dagu/internal/persis/filedagrun"
-	"github.com/dagucloud/dagu/internal/persis/fileserviceregistry"
 	"github.com/dagucloud/dagu/internal/persis/store"
 	runtimepkg "github.com/dagucloud/dagu/internal/runtime"
 	"github.com/dagucloud/dagu/internal/runtime/agent"
@@ -271,29 +267,21 @@ func Setup(t *testing.T, opts ...HelperOption) Helper {
 	ctx = config.WithConfig(ctx, cfg)
 
 	if cfg.Paths.BaseConfig != "" {
-		baseConfigStore, err := filebaseconfig.New(
+		baseConfigStore, err := file.NewBaseConfigStore(
 			cfg.Paths.BaseConfig,
-			filebaseconfig.WithSkipDefault(cfg.Core.SkipExamples),
+			file.WithBaseConfigSkipDefault(cfg.Core.SkipExamples),
 		)
 		require.NoError(t, err)
 		require.NoError(t, baseConfigStore.Initialize())
 	}
 
-	dagStore := filedag.New(
-		cfg.Paths.DAGsDir,
-		filedag.WithFlagsBaseDir(cfg.Paths.SuspendFlagsDir),
-		filedag.WithBaseConfig(cfg.Paths.BaseConfig),
-		filedag.WithWorkspaceBaseConfigDir(workspace.BaseConfigDir(cfg.Paths.DAGsDir)),
-		filedag.WithSkipExamples(true),
-	)
-	runStore := filedagrun.New(
-		cfg.Paths.DAGRunsDir,
-		filedagrun.WithArtifactDir(cfg.Paths.ArtifactDir),
-	)
+	dagStore, err := file.NewDAGStore(cfg, file.WithDAGSkipExamples(true))
+	require.NoError(t, err)
+	runStore := file.NewDAGRunStore(cfg)
 	procStore := newProcStore(cfg)
 	queueStore := store.NewQueueStore(file.NewCollection(cfg.Paths.QueueDir))
 	stateStore := store.NewDAGStateStore(file.NewCollection(cfg.Paths.DAGStateDir))
-	serviceMonitor := fileserviceregistry.New(cfg.Paths.ServiceRegistryDir)
+	serviceMonitor := file.NewServiceRegistry(cfg)
 	distributedDir := filepath.Join(cfg.Paths.DataDir, "distributed")
 	var dispatchStoreOpts []store.DispatchTaskStoreOption
 	if options.StaleLeaseThreshold > 0 {
@@ -727,7 +715,7 @@ func (d *DAG) ReadOutputs(t *testing.T) map[string]string {
 		if err != nil {
 			return err
 		}
-		if info.Name() == filedagrun.OutputsFile {
+		if info.Name() == file.DAGRunOutputsFileName {
 			outputsPath = path
 			return filepath.SkipAll
 		}

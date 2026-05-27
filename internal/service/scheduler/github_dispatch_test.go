@@ -18,8 +18,8 @@ import (
 	"github.com/dagucloud/dagu/internal/core/spec"
 	"github.com/dagucloud/dagu/internal/license"
 	"github.com/dagucloud/dagu/internal/persis/file"
+	"github.com/dagucloud/dagu/internal/persis/file/dagrun"
 	"github.com/dagucloud/dagu/internal/persis/filedag"
-	"github.com/dagucloud/dagu/internal/persis/filedagrun"
 	"github.com/dagucloud/dagu/internal/persis/filegithubdispatch"
 	persiststore "github.com/dagucloud/dagu/internal/persis/store"
 	"github.com/dagucloud/dagu/internal/runtime"
@@ -106,7 +106,7 @@ func TestGitHubDispatchWorker_ProcessAndReportJob(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 
-	tracked, err := tracker.List()
+	tracked, err := tracker.List(env.ctx)
 	require.NoError(t, err)
 	require.Len(t, tracked, 1)
 	assert.Equal(t, githubDispatchAccepted, tracked[0].Phase)
@@ -133,7 +133,7 @@ func TestGitHubDispatchWorker_ProcessAndReportJob(t *testing.T) {
 	assert.Equal(t, "job-1", client.finishes[0].jobID)
 	assert.Equal(t, "succeeded", client.finishes[0].req.ResultStatus)
 
-	tracked, err = tracker.List()
+	tracked, err = tracker.List(env.ctx)
 	require.NoError(t, err)
 	assert.Empty(t, tracked)
 }
@@ -174,7 +174,7 @@ func TestGitHubDispatchWorker_CancelCommandDoesNotStopDag(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, items)
 
-	tracked, err := tracker.List()
+	tracked, err := tracker.List(env.ctx)
 	require.NoError(t, err)
 	assert.Empty(t, tracked)
 }
@@ -229,7 +229,7 @@ func TestGitHubDispatchWorker_ReportTrackedJobsContinuesAfterError(t *testing.T)
 	assert.Equal(t, "job-1", client.finishes[0].jobID)
 	assert.Equal(t, "job-2", client.finishes[1].jobID)
 
-	tracked, err := tracker.List()
+	tracked, err := tracker.List(env.ctx)
 	require.NoError(t, err)
 	require.Len(t, tracked, 1)
 	assert.Equal(t, "job-1", tracked[0].JobID)
@@ -418,10 +418,10 @@ func newDispatchTestEnv(t *testing.T, dagName string) dispatchTestEnv {
 	dag, err := spec.Load(ctx, dagFile)
 	require.NoError(t, err)
 
-	dagRuns := filedagrun.New(
+	dagRuns := dagrun.New(
 		cfg.Paths.DAGRunsDir,
-		filedagrun.WithArtifactDir(cfg.Paths.ArtifactDir),
-		filedagrun.WithLocation(time.UTC),
+		dagrun.WithArtifactDir(cfg.Paths.ArtifactDir),
+		dagrun.WithLocation(time.UTC),
 	)
 	proc := newSchedulerTestProcStore(cfg.Paths.ProcDir, cfg)
 	queue := persiststore.NewQueueStore(file.NewCollection(cfg.Paths.QueueDir))
