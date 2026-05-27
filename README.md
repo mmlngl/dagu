@@ -17,7 +17,7 @@
 
 <h1><b> Dagu </b></h1>
 
-Dagu is a powerful Cron or Airflow alternative that comes with a Web UI. It allows you to define dependencies between commands as a [Directed Acyclic Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) in a declarative [YAML format](https://dagu.readthedocs.io/en/latest/yaml_format.html). Dagu simplifies the management and execution of complex workflows. It natively supports running Docker containers, k8s jobs, SSH, or [AI-agent harnesses](https://docs.dagu.sh/step-types/harness/). Use your favorite AI agents to manage your DAGs via MCP.
+Dagu is a powerful Cron or Airflow alternative that comes with a Web UI. It allows you to define dependencies between commands as a [Directed Acyclic Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) in a declarative [YAML format](https://dagu.readthedocs.io/en/latest/yaml_format.html). Dagu simplifies the management and execution of complex workflows. It natively supports running Docker containers, k8s jobs, SSH commands, or [AI-agent harnesses](https://docs.dagu.sh/step-types/harness/). Use your favorite AI agents to manage your DAGs via MCP.
 
 Built for developers who want powerful workflow orchestration without the operational overhead. For a quick feel of how it works, take a look at the [examples](https://docs.dagu.sh/writing-workflows/examples).
 
