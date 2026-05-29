@@ -1,12 +1,6 @@
 <div align="center">
   <img src="./assets/images/hero-logo.webp" width="480" alt="Dagu Logo">
   <p>
-    <a href="https://docs.dagu.sh/overview/changelog"><img src="https://img.shields.io/github/release/dagucloud/dagu.svg?style=flat-square" alt="Latest Release"></a>
-    <a href="https://github.com/dagucloud/dagu/actions/workflows/ci.yaml"><img src="https://img.shields.io/github/actions/workflow/status/dagucloud/dagu/ci.yaml?style=flat-square" alt="Build Status"></a>
-    <a href="https://discord.gg/gpahPUjGRk"><img src="https://img.shields.io/discord/1095289480774172772?style=flat-square&logo=discord" alt="Discord"></a>
-    <a href="https://bsky.app/profile/dagu-sh.bsky.social"><img src="https://img.shields.io/badge/Bluesky-0285FF?style=flat-square&logo=bluesky&logoColor=white" alt="Bluesky"></a>
-  </p>
-  <p>
     <a href="https://docs.dagu.sh">Docs</a> |
     <a href="https://docs.dagu.sh/writing-workflows/examples">Examples</a> |
     <a href="https://discord.gg/gpahPUjGRk">Community</a>
