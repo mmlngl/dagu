@@ -38,6 +38,9 @@ import (
 	"github.com/dagucloud/dagu/internal/core/spec"
 	spectypes "github.com/dagucloud/dagu/internal/core/spec/types"
 	"github.com/dagucloud/dagu/internal/dagrun/intake"
+	"github.com/dagucloud/dagu/internal/dagwarning"
+	"github.com/dagucloud/dagu/internal/dispatch"
+	"github.com/dagucloud/dagu/internal/launcher"
 	"github.com/dagucloud/dagu/internal/runtime"
 	"github.com/dagucloud/dagu/internal/runtime/executor"
 	"github.com/dagucloud/dagu/internal/service/audit"
@@ -521,7 +524,7 @@ func (a *API) loadInlineDAG(ctx context.Context, specContent string, name *strin
 func restoreDAGRunSnapshot(ctx context.Context, dag *core.DAG, status *exec.DAGRunStatus) (*core.DAG, string, error) {
 	quotedParams := spec.QuoteRuntimeParams(status.ParamsList, dag.ParamDefs)
 	dag.Params = quotedParams
-	dag.LoadDotEnv(ctx)
+	dagwarning.LoadDotEnv(ctx, dag)
 
 	restored, err := rebuildDAGRunSnapshotFromYAML(ctx, dag)
 	if err != nil {
@@ -2596,7 +2599,7 @@ func (a *API) retryDAGRun(ctx context.Context, dagName, dagRunID, retryDagRunID,
 	}
 
 	// Check if this DAG should be dispatched to the coordinator for distributed execution
-	if core.ShouldDispatchToCoordinator(dag, a.coordinatorCli != nil, a.defaultExecMode) {
+	if dispatch.ShouldDispatchToCoordinator(dag, a.coordinatorCli != nil, a.defaultExecMode) {
 		// Get previous status for retry context
 		prevStatus, err := attempt.ReadStatus(ctx)
 		if err != nil {
@@ -2650,7 +2653,7 @@ func (a *API) retryDAGRun(ctx context.Context, dagName, dagRunID, retryDagRunID,
 	}
 
 	spec := a.subCmdBuilder.Retry(prepared, retryDagRunID, stepName)
-	if err := runtime.Start(ctx, spec); err != nil {
+	if err := launcher.Start(ctx, spec); err != nil {
 		return retryDAGRunResult{}, fmt.Errorf("error retrying DAG: %w", err)
 	}
 
@@ -2698,7 +2701,7 @@ func (a *API) logRetryAudit(ctx context.Context, dagName, dagRunID, stepName str
 
 // waitForRetryStarted polls briefly to confirm the retry subprocess has started.
 // This is best-effort: if the timeout elapses we still return 200 since the
-// subprocess was spawned successfully by runtime.Start.
+// subprocess was spawned successfully by launcher.Start.
 func (a *API) waitForRetryStarted(ctx context.Context, dag *core.DAG, dagRunID string) {
 	const (
 		timeout      = 3 * time.Second
@@ -2815,7 +2818,7 @@ func (a *API) TerminateDAGRun(ctx context.Context, request api.TerminateDAGRunRe
 			return nil, fmt.Errorf("error reading DAG: %w", err)
 		}
 
-		if core.ShouldDispatchToCoordinator(dag, a.coordinatorCli != nil, a.defaultExecMode) {
+		if dispatch.ShouldDispatchToCoordinator(dag, a.coordinatorCli != nil, a.defaultExecMode) {
 			// For distributed DAGs, use saved status for running check
 			if savedStatus.Status != core.Running {
 				return nil, &Error{
@@ -3423,7 +3426,7 @@ func (a *API) resumeDAGRun(ctx context.Context, ref exec.DAGRunRef, dagRunID str
 	}
 
 	retrySpec := a.subCmdBuilder.Retry(prepared, dagRunID, "")
-	return runtime.Start(ctx, retrySpec)
+	return launcher.Start(ctx, retrySpec)
 }
 
 func (a *API) resumeSubDAGRun(ctx context.Context, rootRef exec.DAGRunRef, subDAGRunID string) error {
@@ -3448,7 +3451,7 @@ func (a *API) resumeSubDAGRun(ctx context.Context, rootRef exec.DAGRunRef, subDA
 	}
 
 	retrySpec := a.subCmdBuilder.Retry(prepared, subDAGRunID, "")
-	return runtime.Start(ctx, retrySpec)
+	return launcher.Start(ctx, retrySpec)
 }
 
 func (a *API) prepareRetryDAGForSubprocess(ctx context.Context, dag *core.DAG, status *exec.DAGRunStatus) (*core.DAG, error) {
@@ -3456,15 +3459,16 @@ func (a *API) prepareRetryDAGForSubprocess(ctx context.Context, dag *core.DAG, s
 		return dag, nil
 	}
 
-	env, err := spec.ResolveEnv(ctx, dag, spec.QuoteRuntimeParams(status.ParamsList, dag.ParamDefs), spec.ResolveEnvOptions{
+	result, err := spec.ResolveEnvWithWarnings(ctx, dag, spec.QuoteRuntimeParams(status.ParamsList, dag.ParamDefs), spec.ResolveEnvOptions{
 		BaseConfig: a.config.Paths.BaseConfig,
 	})
 	if err != nil {
 		return nil, err
 	}
+	dagwarning.Log(ctx, result.BuildWarnings)
 
 	prepared := dag.Clone()
-	prepared.Env = env
+	prepared.Env = result.Env
 	return prepared, nil
 }
 

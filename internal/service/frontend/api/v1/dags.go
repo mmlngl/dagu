@@ -28,7 +28,8 @@ import (
 	"github.com/dagucloud/dagu/internal/core"
 	"github.com/dagucloud/dagu/internal/core/exec"
 	"github.com/dagucloud/dagu/internal/core/spec"
-	"github.com/dagucloud/dagu/internal/runtime"
+	"github.com/dagucloud/dagu/internal/dispatch"
+	"github.com/dagucloud/dagu/internal/launcher"
 	"github.com/dagucloud/dagu/internal/runtime/executor"
 	"github.com/dagucloud/dagu/internal/service/audit"
 	"github.com/dagucloud/dagu/internal/service/scheduler"
@@ -1344,7 +1345,7 @@ func (a *API) waitForLocalDAGStart(
 	ctx context.Context,
 	dag *core.DAG,
 	dagRunID string,
-	started *runtime.StartResult,
+	started *launcher.StartResult,
 	timeout time.Duration,
 ) error {
 	statusChanged, err := a.waitForDAGStatusChange(ctx, dag, dagRunID, timeout)
@@ -1388,7 +1389,7 @@ func (a *API) waitForLocalDAGStart(
 	}
 }
 
-func localStartProcessStillRunning(started *runtime.StartResult) bool {
+func localStartProcessStillRunning(started *launcher.StartResult) bool {
 	if started == nil || started.PID <= 0 {
 		return false
 	}
@@ -1488,7 +1489,7 @@ func (a *API) startPreparedDAGRunWithOptions(
 	dispatchParams string,
 ) error {
 	// Check if this DAG should be dispatched to the coordinator for distributed execution
-	if core.ShouldDispatchToCoordinator(dag, a.coordinatorCli != nil, a.defaultExecMode) {
+	if dispatch.ShouldDispatchToCoordinator(dag, a.coordinatorCli != nil, a.defaultExecMode) {
 		timeout := 10 * time.Second
 		if osrt.GOOS == "windows" {
 			timeout = 20 * time.Second
@@ -1514,7 +1515,7 @@ func (a *API) startPreparedDAGRunWithOptions(
 			fromRunID = ""
 		}
 	}
-	spec := a.subCmdBuilder.Start(dag, runtime.StartOptions{
+	spec := a.subCmdBuilder.Start(dag, launcher.StartOptions{
 		Params:       dispatchParams,
 		DAGRunID:     opts.dagRunID,
 		Quiet:        true,
@@ -1525,7 +1526,7 @@ func (a *API) startPreparedDAGRunWithOptions(
 		Labels:       opts.labels,
 	})
 
-	started, err := runtime.StartProcess(ctx, spec)
+	started, err := launcher.StartProcess(ctx, spec)
 	if err != nil {
 		return fmt.Errorf("error starting DAG: %w", err)
 	}
@@ -1682,7 +1683,7 @@ func (a *API) enqueueDAGRun(ctx context.Context, dag *core.DAG, params, dagRunID
 	if triggerType != core.TriggerTypeUnknown {
 		triggerTypeStr = triggerType.String()
 	}
-	opts := runtime.EnqueueOptions{
+	opts := launcher.EnqueueOptions{
 		Params:       params,
 		DAGRunID:     dagRunID,
 		NameOverride: nameOverride,
@@ -1694,7 +1695,7 @@ func (a *API) enqueueDAGRun(ctx context.Context, dag *core.DAG, params, dagRunID
 	}
 
 	spec := a.subCmdBuilder.Enqueue(dag, opts)
-	if err := runtime.Run(ctx, spec); err != nil {
+	if err := launcher.Run(ctx, spec); err != nil {
 		return fmt.Errorf("error enqueuing DAG: %w", err)
 	}
 

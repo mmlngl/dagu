@@ -3510,6 +3510,28 @@ steps:
 		assert.Equal(t, "test_value", envMap["TEST_VAR_LOAD_ENV"])
 	})
 
+	t.Run("LoadEnvWithMalformedDotenvFileRecordsWarning", func(t *testing.T) {
+		tempDir := t.TempDir()
+		envFile := filepath.Join(tempDir, ".env")
+		require.NoError(t, os.WriteFile(envFile, []byte("INVALID LINE\n"), 0600))
+
+		yaml := fmt.Sprintf(`
+working_dir: %s
+dotenv: .env
+steps:
+  - run: echo hello
+`, tempDir)
+
+		dag, err := spec.LoadYAMLWithOpts(context.Background(), []byte(yaml), spec.BuildOpts{Flags: spec.BuildFlagNoEval})
+		require.NoError(t, err)
+		require.NotNil(t, dag)
+
+		dag.LoadDotEnv(context.Background())
+
+		require.Len(t, dag.BuildWarnings, 1)
+		assert.Contains(t, dag.BuildWarnings[0], "failed to load .env file")
+	})
+
 	t.Run("LoadEnvFromBaseEnvResolvedWorkingDir", func(t *testing.T) {
 		root := t.TempDir()
 		workDir := filepath.Join(root, "work", "quant-signal")

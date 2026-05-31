@@ -1,21 +1,24 @@
 // Copyright (C) 2026 Yota Hamada
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package runtime
+package launcher
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
 	"github.com/dagucloud/dagu/internal/cmn/buildenv"
 	"github.com/dagucloud/dagu/internal/cmn/cmdutil"
 	"github.com/dagucloud/dagu/internal/cmn/config"
+	"github.com/dagucloud/dagu/internal/cmn/logger"
 	"github.com/dagucloud/dagu/internal/cmn/procutil"
 	"github.com/dagucloud/dagu/internal/core"
 	exec1 "github.com/dagucloud/dagu/internal/core/exec"
@@ -575,4 +578,35 @@ func cleanupTransport(cleanup func() error) {
 		return
 	}
 	_ = cleanup()
+}
+
+// execWithRecovery executes a function with panic recovery and detailed error reporting
+// It captures stack traces and provides structured error information for debugging
+func execWithRecovery(ctx context.Context, fn func()) {
+	defer func() {
+		if panicObj := recover(); panicObj != nil {
+			stack := debug.Stack()
+
+			// Convert panic object to error
+			var err error
+			switch v := panicObj.(type) {
+			case error:
+				err = v
+			case string:
+				err = fmt.Errorf("panic: %s", v)
+			default:
+				err = fmt.Errorf("panic: %v", v)
+			}
+
+			// Log with structured information
+			logger.Error(ctx, "Recovered from panic",
+				slog.String("err", err.Error()),
+				slog.String("errType", fmt.Sprintf("%T", panicObj)),
+				slog.String("stackTrace", string(stack)),
+			)
+		}
+	}()
+
+	// Execute the function
+	fn()
 }
