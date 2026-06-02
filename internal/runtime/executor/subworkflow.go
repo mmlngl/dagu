@@ -28,6 +28,7 @@ type SubWorkflowRequest struct {
 	ParentDAGRun      exec.DAGRunRef
 	RunID             string
 	Params            string
+	ProfileName       string
 	WorkDir           string
 	WorkerSelector    map[string]string
 	ExternalStepRetry bool

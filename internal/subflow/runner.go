@@ -319,6 +319,9 @@ func (r *Runner) taskOptions(
 	if req.ExternalStepRetry {
 		options = append(options, executor.WithExternalStepRetry(true))
 	}
+	if req.ProfileName != "" {
+		options = append(options, executor.WithProfileName(req.ProfileName))
+	}
 
 	snapshot, err := agentsnapshot.BuildFromContext(ctx, req.DAG)
 	if err != nil {

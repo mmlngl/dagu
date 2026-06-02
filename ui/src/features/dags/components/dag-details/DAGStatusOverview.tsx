@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Yota Hamada
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * DAGStatusOverview component displays summary information about a DAG run.
  *
@@ -11,6 +14,7 @@ import {
   Info,
   LucideIcon,
   PlayCircle,
+  SlidersHorizontal,
   StopCircle,
   Terminal,
 } from 'lucide-react';
@@ -293,6 +297,14 @@ function DAGStatusOverview({
             <span className="text-muted-foreground">Trigger </span>
             <span className="font-medium text-foreground">
               {triggerTypeLabels[status.triggerType] ?? status.triggerType}
+            </span>
+          </span>
+        )}
+        {status.profileName && (
+          <span className="inline-flex max-w-[180px] items-center gap-1 truncate">
+            <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
+            <span className="font-medium text-foreground">
+              {status.profileName}
             </span>
           </span>
         )}

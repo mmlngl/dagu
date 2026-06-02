@@ -169,6 +169,9 @@ func (b *SubCmdBuilder) Start(dag *core.DAG, opts StartOptions) CmdSpec {
 	if opts.ScheduleTime != "" {
 		args = append(args, fmt.Sprintf("--schedule-time=%s", opts.ScheduleTime))
 	}
+	if opts.ProfileName != "" {
+		args = append(args, fmt.Sprintf("--profile=%s", opts.ProfileName))
+	}
 	if b.configFile != "" {
 		args = append(args, "--config", b.configFile)
 	}
@@ -216,6 +219,9 @@ func (b *SubCmdBuilder) Enqueue(dag *core.DAG, opts EnqueueOptions) CmdSpec {
 	}
 	if opts.ScheduleTime != "" {
 		args = append(args, fmt.Sprintf("--schedule-time=%s", opts.ScheduleTime))
+	}
+	if opts.ProfileName != "" {
+		args = append(args, fmt.Sprintf("--profile=%s", opts.ProfileName))
 	}
 	args = append(args, dag.Location)
 
@@ -350,6 +356,9 @@ func (b *SubCmdBuilder) TaskStart(task *exec1.DispatchTask, envHints []string, d
 	if task.SourceFile != "" {
 		args = append(args, fmt.Sprintf("--source-file=%s", task.SourceFile))
 	}
+	if task.ProfileName != "" {
+		args = append(args, fmt.Sprintf("--profile=%s", task.ProfileName))
+	}
 
 	if b.configFile != "" {
 		args = append(args, "--config", b.configFile)
@@ -435,6 +444,7 @@ type StartOptions struct {
 	Labels       string // Additional labels (comma-separated)
 	Tags         string // Deprecated: use Labels.
 	ScheduleTime string // RFC 3339 timestamp of when this run was scheduled
+	ProfileName  string // Runtime profile name
 }
 
 // EnqueueOptions contains options for enqueuing a dag-run.
@@ -448,6 +458,7 @@ type EnqueueOptions struct {
 	Labels       string // Additional labels (comma-separated)
 	Tags         string // Deprecated: use Labels.
 	ScheduleTime string // RFC 3339 timestamp of when this run was scheduled
+	ProfileName  string // Runtime profile name
 }
 
 // RestartOptions contains options for restarting a dag-run.

@@ -27,10 +27,12 @@ import (
 	"github.com/dagucloud/dagu/internal/core"
 	"github.com/dagucloud/dagu/internal/core/baseconfig"
 	"github.com/dagucloud/dagu/internal/core/exec"
+	"github.com/dagucloud/dagu/internal/dagsettings"
 	incidentmodel "github.com/dagucloud/dagu/internal/incident"
 	"github.com/dagucloud/dagu/internal/launcher"
 	"github.com/dagucloud/dagu/internal/license"
 	notificationmodel "github.com/dagucloud/dagu/internal/notification"
+	profilepkg "github.com/dagucloud/dagu/internal/profile"
 	"github.com/dagucloud/dagu/internal/remotenode"
 	"github.com/dagucloud/dagu/internal/runtime"
 	secretpkg "github.com/dagucloud/dagu/internal/secret"
@@ -90,7 +92,9 @@ type API struct {
 	agentAPI             *agent.API
 	docStore             agent.DocStore
 	baseConfigStore      baseconfig.Store
+	dagSettingsStore     dagsettings.Store
 	secretStore          secretpkg.Store
+	profileStore         profilepkg.Store
 	licenseManager       *license.Manager
 	apiKeyCreateMu       sync.Mutex
 	workspaceStore       workspace.Store
@@ -245,6 +249,20 @@ func WithSnapshotStoreFactory(factory agentsnapshot.StoreFactory) APIOption {
 func WithSecretStore(store secretpkg.Store) APIOption {
 	return func(a *API) {
 		a.secretStore = store
+	}
+}
+
+// WithProfileStore returns an APIOption that sets the runtime profile store.
+func WithProfileStore(store profilepkg.Store) APIOption {
+	return func(a *API) {
+		a.profileStore = store
+	}
+}
+
+// WithDAGSettingsStore returns an APIOption that sets the DAG settings store.
+func WithDAGSettingsStore(store dagsettings.Store) APIOption {
+	return func(a *API) {
+		a.dagSettingsStore = store
 	}
 }
 

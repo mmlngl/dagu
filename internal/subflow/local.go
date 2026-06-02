@@ -16,6 +16,7 @@ import (
 	"github.com/dagucloud/dagu/internal/core/exec"
 	"github.com/dagucloud/dagu/internal/core/spec"
 	"github.com/dagucloud/dagu/internal/dagstate"
+	profilepkg "github.com/dagucloud/dagu/internal/profile"
 	"github.com/dagucloud/dagu/internal/runtime"
 	rtagent "github.com/dagucloud/dagu/internal/runtime/agent"
 	"github.com/dagucloud/dagu/internal/runtime/executor"
@@ -31,6 +32,7 @@ type Local struct {
 	queueStore               exec.QueueStore
 	stateStore               dagstate.Store
 	secretStore              secretpkg.Store
+	profileStore             profilepkg.Store
 	serviceRegistry          exec.ServiceRegistry
 	statusPusher             runtime.StatusPusher
 	logWriterFactory         exec.LogWriterFactory
@@ -74,6 +76,13 @@ func WithLocalStateStore(store dagstate.Store) LocalOption {
 func WithLocalSecretStore(store secretpkg.Store) LocalOption {
 	return func(r *Local) {
 		r.secretStore = store
+	}
+}
+
+// WithLocalProfileStore sets the runtime profile store used by child workflow agents.
+func WithLocalProfileStore(store profilepkg.Store) LocalOption {
+	return func(r *Local) {
+		r.profileStore = store
 	}
 }
 
@@ -276,7 +285,9 @@ func (r *Local) newAgent(
 	opts.QueueStore = r.queueStoreFromContext(ctx)
 	opts.StateStore = r.stateStoreFromContext(ctx)
 	opts.SecretStore = r.secretStore
-	opts.ServiceRegistry = r.serviceRegistryFromContext(ctx)
+	opts.ProfileStore = r.profileStore
+	opts.ProfileName = req.ProfileName
+	opts.ServiceRegistry = r.serviceRegistry
 	opts.DefaultExecMode = rCtx.DefaultExecMode
 	opts.AgentConfigStore = agentctx.GetConfigStore(ctx)
 	opts.AgentModelStore = agentctx.GetModelStore(ctx)
@@ -354,13 +365,6 @@ func (r *Local) stateStoreFromContext(ctx context.Context) dagstate.Store {
 		return r.stateStore
 	}
 	return exec.GetContext(ctx).StateStore
-}
-
-func (r *Local) serviceRegistryFromContext(ctx context.Context) exec.ServiceRegistry {
-	if r.serviceRegistry != nil {
-		return r.serviceRegistry
-	}
-	return nil
 }
 
 func validateInProcessRequest(req executor.SubWorkflowRequest) error {

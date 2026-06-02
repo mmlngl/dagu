@@ -259,6 +259,7 @@ func (e *SubDAGExecutor) subWorkflowRequest(ctx context.Context, runParams RunPa
 		ParentDAGRun:      parent,
 		RunID:             runParams.RunID,
 		Params:            runParams.Params,
+		ProfileName:       rCtx.ProfileName,
 		WorkDir:           workDir,
 		WorkerSelector:    cloneWorkerSelector(e.effectiveWorkerSelector()),
 		ExternalStepRetry: e.externalStepRetry,

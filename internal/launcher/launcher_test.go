@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dagucloud/dagu/internal/cmn/config"
+	"github.com/dagucloud/dagu/internal/cmn/masking"
 	"github.com/dagucloud/dagu/internal/cmn/stringutil"
 	"github.com/dagucloud/dagu/internal/core"
 	"github.com/dagucloud/dagu/internal/core/exec"
@@ -312,7 +313,7 @@ steps:
 		status = latest
 		return status.Status == core.Succeeded
 	}, statusTimeout, 100*time.Millisecond)
-	require.Equal(t, "from-host|", test.StatusOutputValue(t, &status, "RESULT"))
+	require.Equal(t, masking.DefaultMaskString+"|", test.StatusOutputValue(t, &status, "RESULT"))
 }
 
 func TestStart(t *testing.T) {
@@ -970,6 +971,22 @@ func TestTaskRetry(t *testing.T) {
 		spec := builder.TaskRetry(task, nil, "")
 
 		assert.Contains(t, spec.Env, exec.EnvKeyExternalStepRetry+"=1")
+	})
+
+	t.Run("TaskRetryDoesNotPassProfileFlag", func(t *testing.T) {
+		t.Parallel()
+		task := &exec.DispatchTask{
+			DAGRunID:       "retry-run-id",
+			AttemptID:      "attempt-2",
+			Target:         "/path/to/task.yaml",
+			RootDAGRunName: "root-dag",
+			ProfileName:    "prod",
+		}
+		spec := builder.TaskRetry(task, nil, "")
+
+		for _, arg := range spec.Args {
+			assert.NotContains(t, arg, "--profile")
+		}
 	})
 
 	t.Run("TaskRetryDoesNotMarkQueueDispatch", func(t *testing.T) {
