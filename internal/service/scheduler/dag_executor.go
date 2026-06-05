@@ -209,7 +209,7 @@ func (e *DAGExecutor) executeDAG(
 		if profileName != "" {
 			taskOpts = append(taskOpts, executor.WithProfileName(profileName))
 		}
-		if previousStatus != nil && previousStatus.Params != "" {
+		if previousStatus != nil && len(previousStatus.ParamsList) == 0 && previousStatus.Params != "" {
 			taskOpts = append(taskOpts, executor.WithTaskParams(previousStatus.Params))
 		}
 		if dag.SourceFile != "" {
@@ -240,7 +240,7 @@ func (e *DAGExecutor) executeDAG(
 	// Local execution
 	var params any
 	if previousStatus != nil {
-		params = spec.QuoteRuntimeParams(previousStatus.ParamsList, dag.ParamDefs)
+		params = previousStatus.ParamsList
 	}
 	dag, err := e.prepareDAGForSubprocess(ctx, dag, params)
 	if err != nil {
