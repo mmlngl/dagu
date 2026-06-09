@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/dagucloud/dagu/internal/core"
+	"github.com/dagucloud/dagu/internal/core/spec"
 )
 
 func validateStartArgumentSeparator(ctx *Context, args []string) error {
@@ -26,7 +27,7 @@ func buildStartValidationInput(ctx *Context, args []string) (core.StartParamInpu
 		if argsLenAtDash >= len(args) {
 			return core.StartParamInput{}, nil
 		}
-		return core.StartParamInput{DashArgs: args[argsLenAtDash:]}, nil
+		return core.StartParamInput{DashArgs: spec.QuoteRuntimeParams(args[argsLenAtDash:], nil)}, nil
 	}
 
 	raw, err := ctx.Command.Flags().GetString("params")

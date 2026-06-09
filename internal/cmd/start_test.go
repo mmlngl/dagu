@@ -36,6 +36,11 @@ steps:
   - name: "1"
     run: "echo \"params is $1 and $2\""
 `)
+	dagStartWithSingleParam := th.DAG(t, `params: "p1"
+steps:
+  - name: "1"
+    run: "echo \"params is $1\""
+`)
 
 	dagStartWithDAGRunID := th.DAG(t, `steps:
   - name: "1"
@@ -62,6 +67,11 @@ steps:
 			Name:        "StartDAGWithParamsAfterDash",
 			Args:        []string{"start", dagStartWithParams.Location, "--", "p5", "p6"},
 			ExpectedOut: []string{`params="[1=p5 2=p6`},
+		},
+		{
+			Name:        "StartDAGWithSpacedParamAfterDash",
+			Args:        []string{"start", dagStartWithSingleParam.Location, "--", "Something here"},
+			ExpectedOut: []string{`params="[1=Something here]"`},
 		},
 		{
 			Name:        "StartDAGWithRequestID",
